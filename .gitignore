@@ -1,3 +1,17 @@
+# IDE / editor
 .vscode/
+
+# Competitive programming helpers
 .cph/
-train.cpp
+
+# Temp or ignored directories
+# ignored/
+# skipped/
+
+# Logs and env files
+*.log
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
