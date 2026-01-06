@@ -1,20 +1,21 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+// Function to generate a random integer between l and r (inclusive)
 int randInt(int l, int r) {
     return l + rand() % (r - l + 1);
 }
 
-// generate array of length n with unique values between 1 and maxVal
+// Function to generate an array of unique random integers
 vector<int> generateArray(int n, int maxVal) {
     vector<int> arr;
-    set<int> used;
+    set<int> used; // To store unique numbers
     for (int i = 0; i < n; i++) {
         int x;
         do {
             x = randInt(1, maxVal);
-        } while (used.count(x));
-        used.insert(x);
+        } while (used.count(x)); // Ensure uniqueness
+        used.insert(x); // Mark the number as used
         arr.push_back(x);
     }
     return arr;
@@ -25,18 +26,26 @@ int main(int argc, char* argv[]) {
         cerr << "Usage: ./gen <seed>\n";
         return 1;
     }
+
+    // Set the random seed from the command line argument
     srand(atoi(argv[1]));
-    printf("1\n"); // number of test cases
-    int n = 5;
-    int maxVal = 6;
-    printf("%d\n", n);
 
+    // Generate the number of people (n pairs, 2*n total)
+    int n = randInt(3, 20); // n between 2 and 10
+    int maxVal = 1000; // Set max value based on n (to ensure enough unique values)
+
+    // Output the test case format
+    printf("1\n"); // Problem count (always 1)
+    printf("%d\n", n); // Output n (the number of pairs)
+
+    // Generate the array of 2 * n unique weights
+    n *= 2; // 2*n people in total
     vector<int> a = generateArray(n, maxVal);
-    vector<int> b = generateArray(n, maxVal);
 
-    for (int i = 0; i < n; i++) printf("%d ", a[i]);
-    printf("\n");
-    for (int i = 0; i < n; i++) printf("%d ", b[i]);
+    // Output the generated array
+    for (int i = 0; i < n; i++) {
+        printf("%d ", a[i]);
+    }
     printf("\n");
 
     return 0;

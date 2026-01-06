@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-MAX_TESTS=200
+MAX_TESTS=2000
 
 GEN="gen"        # gen.cpp
 # GEN="gen_tree" # gen_tree.cpp

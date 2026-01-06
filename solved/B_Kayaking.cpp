@@ -20,6 +20,7 @@ void solve() {
                     b.push_back(a[k]);
                 }
             }
+            sort(all(b));
             int res = 0;
             for (int k = 0; k < b.size(); k += 2) res += abs(b[k] - b[k + 1]);
             ans = min(ans, res);
