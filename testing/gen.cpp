@@ -13,7 +13,7 @@ vector<int> generateArray(int n, int maxVal) {
     for (int i = 0; i < n; i++) {
         int x;
         do {
-            x = randInt(1, maxVal);
+            x = randInt(0, maxVal);
         } while (used.count(x)); // Ensure uniqueness
         used.insert(x); // Mark the number as used
         arr.push_back(x);
@@ -27,22 +27,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Set the random seed from the command line argument
     srand(atoi(argv[1]));
 
-    // Generate the number of people (n pairs, 2*n total)
-    int n = randInt(3, 20); // n between 2 and 10
-    int maxVal = 1000; // Set max value based on n (to ensure enough unique values)
+    int n = randInt(3, 20); 
+    int maxVal = 2; 
+    printf("%d\n", n); 
 
-    // Output the test case format
-    printf("1\n"); // Problem count (always 1)
-    printf("%d\n", n); // Output n (the number of pairs)
-
-    // Generate the array of 2 * n unique weights
-    n *= 2; // 2*n people in total
     vector<int> a = generateArray(n, maxVal);
 
-    // Output the generated array
     for (int i = 0; i < n; i++) {
         printf("%d ", a[i]);
     }

@@ -1,44 +1,44 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-int main() {
-    int n;
-    cin >> n;
+int min_coins_brute(vector<int> a) {
+    int n = a.size();
+    vector<bool> blue(n, true);
+    int coins = 0;
 
-    vector<int> weights(2 * n);
-    for (int i = 0; i < 2 * n; ++i) {
-        cin >> weights[i];
-    }
+    while (any_of(blue.begin(), blue.end(), [](bool b){ return b; })) {
+        for (int i = 0; i < n; i++) {
+            if (blue[i]) {
+                coins++;
+                blue[i] = false;
 
-    sort(weights.begin(), weights.end()); // Sort the weights
+                queue<int> q;
+                q.push(i);
 
-    int min_instability = INT_MAX;
-
-    // Try every pair of people as the ones in the single kayaks
-    for (int i = 0; i < 2 * n; ++i) {
-        for (int j = i + 1; j < 2 * n; ++j) {
-            vector<bool> used(2 * n, false);
-            used[i] = used[j] = true;
-            int instability = 0;
-
-            // Now, pair the remaining people into tandem kayaks
-            for (int k = 0; k < 2 * n; ++k) {
-                if (!used[k]) {
-                    for (int l = k + 1; l < 2 * n; ++l) {
-                        if (!used[l]) {
-                            used[k] = used[l] = true;
-                            instability += abs(weights[k] - weights[l]);
-                            break;
+                while (!q.empty()) {
+                    int idx = q.front(); q.pop();
+                    for (int ni : {idx - 1, idx + 1}) {
+                        if (ni >= 0 && ni < n && blue[ni] && a[idx] > 0) {
+                            a[idx]--;
+                            blue[ni] = false;
+                            q.push(ni);
                         }
                     }
                 }
+                break;
             }
-
-            // Check if this pairing results in a smaller instability
-            min_instability = min(min_instability, instability);
         }
     }
 
-    cout << min_instability << endl;
+    return coins;
+}
+
+int main() {
+    int n;
+    cin >> n;
+    vector<int> a(n);
+    for (int i = 0; i < n; i++) cin >> a[i];
+
+    cout << min_coins_brute(a) << endl;
     return 0;
 }
