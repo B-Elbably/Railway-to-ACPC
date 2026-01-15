@@ -29,16 +29,18 @@ int main(int argc, char* argv[]) {
 
     srand(atoi(argv[1]));
 
-    int n = randInt(3, 20); 
-    int maxVal = 2; 
-    printf("%d\n", n); 
+    int x = randInt(3, 100); 
+    int n = randInt(0, 2);
+    int m = randInt(0, 2);
+    // int maxVal = 2; 
+    printf("%d\n", 1); 
+    printf("%d %d %d\n", x, n, m);
+    // vector<int> a = generateArray(n, maxVal);
 
-    vector<int> a = generateArray(n, maxVal);
-
-    for (int i = 0; i < n; i++) {
-        printf("%d ", a[i]);
-    }
-    printf("\n");
+    // for (int i = 0; i < n; i++) {
+        // printf("%d ", a[i]);
+    // }
+    // printf("\n");
 
     return 0;
 }

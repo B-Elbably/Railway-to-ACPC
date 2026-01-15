@@ -38,10 +38,10 @@ for ((i=1;i<=MAX_TESTS;i++)); do
             echo "INPUT"
             cat input.txt
             echo "--------------------"
-            echo "OUT1"
+            echo "CANDY"
             cat out1.txt
             echo "--------------------"
-            echo "OUT2"
+            echo "BRUTE"
             cat out2.txt
         } > "$FINAL_FILE"
 
