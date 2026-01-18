@@ -1,57 +1,47 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#define ll long long
-
-ll flo(ll x) { return x / 2; }
-ll cei(ll x) { return (x + 1) / 2; }
-
-void solve() {
-    ll x, n, m;
-    cin >> x >> n >> m;
-
-    set<tuple<ll,ll,ll>> vis;
-    queue<tuple<ll,ll,ll>> q;
-
-    q.push({x, 0, 0});
-    vis.insert({x, 0, 0});
-
-    ll mn = LLONG_MAX, mx = LLONG_MIN;
-
-    while (!q.empty()) {
-        auto [cx, fn, cm] = q.front(); q.pop();
-
-        if (fn == n && cm == m) {
-            mn = min(mn, cx);
-            mx = max(mx, cx);
-            continue;
-        }
-
-        if (fn < n) {
-            ll nx = flo(cx);
-            if (!vis.count({nx, fn + 1, cm})) {
-                vis.insert({nx, fn + 1, cm});
-                q.push({nx, fn + 1, cm});
-            }
-        }
-
-        if (cm < m) {
-            ll nx = cei(cx);
-            if (!vis.count({nx, fn, cm + 1})) {
-                vis.insert({nx, fn, cm + 1});
-                q.push({nx, fn, cm + 1});
-            }
-        }
-    }
-
-    cout << mn << " " << mx << "\n";
-}
-
 int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
     int t;
     cin >> t;
-    while (t--) solve();
+    while (t--) {
+        int n, m, k;
+        cin >> n >> m >> k;
+
+        vector<long long> a(n);
+        for (int i = 0; i < n; i++) cin >> a[i];
+
+        unordered_set<long long> spikes;
+        for (int i = 0; i < m; i++) {
+            long long x;
+            cin >> x;
+            spikes.insert(x);
+        }
+
+        string s;
+        cin >> s;
+
+        vector<bool> alive(n, true);
+        int alive_cnt = n;
+
+        for (int step = 0; step < k; step++) {
+            char c = s[step];
+            for (int i = 0; i < n; i++) {
+                if (!alive[i]) continue;
+                if (c == 'L') a[i]--;
+                else a[i]++;
+                if (spikes.count(a[i])) {
+                    alive[i] = false;
+                    alive_cnt--;
+                }
+            }
+            cout << alive_cnt;
+            if (step + 1 < k) cout << ' ';
+        }
+        cout << '\n';
+    }
+    return 0;
 }
