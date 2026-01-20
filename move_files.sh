@@ -1,21 +1,35 @@
-# use to move all cpp & py files
-# excute wihh : ./move_files.sh ./solved/
 #!/bin/bash
 
-# Check argument
-if [ $# -lt 1 ]; then
-    echo "Usage: $0 <destination_folder>"
-    exit 1
-fi
+# 1. Set Destination to 'solved' inside the CURRENT folder
+DEST="./solved"
 
-DEST="$1"  # folder to move files into
+# 2. Create folders (safe to run even if they exist)
+mkdir -p "$DEST/cf" "$DEST/usaco" "$DEST/cses"
 
-# create destination folder if it doesn't exist
-mkdir -p "$DEST"
+# 3. Enable nullglob so the loop doesn't break if no files exist
+shopt -s nullglob
 
-# move all .cpp and .py files except train.cpp and train.py from current folder into DEST
-find . -maxdepth 1 \( -name "*.cpp" -o -name "*.py" \) \
-    ! -name "train.cpp" ! -name "train.py" \
-    -exec mv {} "$DEST" \;
+# 4. Loop through all .cpp and .py files
+for file in *.cpp *.py; do
+    
+    # Skip specific files
+    if [[ "$file" == "train.cpp" || "$file" == "train.py" ]]; then
+        continue
+    fi
 
-echo "Moved .cpp and .py files (except train.*) into $DEST"
+    # LOGIC RULES
+    if [[ "$file" == Problem_* ]]; then
+        # USACO: Starts with "Problem_"
+        mv "$file" "$DEST/usaco/"
+        
+    elif [[ "$file" =~ ^[0-9A-Za-z]+_ ]]; then
+        # Codeforces: Starts with Alphanumeric + Underscore (e.g., 123A_ or B_)
+        mv "$file" "$DEST/cf/"
+        
+    else
+        # CSES: Everything else
+        mv "$file" "$DEST/cses/"
+    fi
+done
+
+echo "Done. Files moved to $DEST"
