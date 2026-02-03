@@ -5,43 +5,42 @@ int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
-    int t;
-    cin >> t;
-    while (t--) {
-        int n, m, k;
-        cin >> n >> m >> k;
+    int N;
+    cin >> N;
+    string S;
+    cin >> S;
 
-        vector<long long> a(n);
-        for (int i = 0; i < n; i++) cin >> a[i];
+    int Q;
+    cin >> Q;
 
-        unordered_set<long long> spikes;
-        for (int i = 0; i < m; i++) {
-            long long x;
-            cin >> x;
-            spikes.insert(x);
-        }
+    while (Q--) {
+        int L, R;
+        cin >> L >> R;
+        L--; R--;
 
-        string s;
-        cin >> s;
+        string T = S.substr(L, R - L + 1);
+        int ops = 0;
 
-        vector<bool> alive(n, true);
-        int alive_cnt = n;
+        for (int i = 0; i < (int)T.size(); i++) {
+            bool bad = false;
 
-        for (int step = 0; step < k; step++) {
-            char c = s[step];
-            for (int i = 0; i < n; i++) {
-                if (!alive[i]) continue;
-                if (c == 'L') a[i]--;
-                else a[i]++;
-                if (spikes.count(a[i])) {
-                    alive[i] = false;
-                    alive_cnt--;
+            if (i >= 1 && T[i] == T[i - 1]) bad = true;
+            if (i >= 2 && T[i] == T[i - 2]) bad = true;
+
+            if (bad) {
+                for (char c = 'a'; c <= 'z'; c++) {
+                    if ((i >= 1 && c == T[i - 1]) ||
+                        (i >= 2 && c == T[i - 2]))
+                        continue;
+                    T[i] = c;
+                    break;
                 }
+                ops++;
             }
-            cout << alive_cnt;
-            if (step + 1 < k) cout << ' ';
         }
-        cout << '\n';
+
+        cout << ops << "\n";
     }
+
     return 0;
 }

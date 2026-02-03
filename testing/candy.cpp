@@ -1,107 +1,87 @@
 #include <bits/stdc++.h>
 using namespace std;
+typedef long long ll;
 
-#define int long long
-#define all(x) (x).begin(), (x).end()
-#define endl '\n'
-const int N = 2e5 + 5;
-vector<int> removed(N);
+struct Node {
+    ll cnt, ans;
+    char pref, suff;
+    Node(ll c = 0, ll a = 0, char p = 'Z', char s = 'Z') : cnt(c), ans(a), pref(p), suff(s) {}
+};
 
-void solve() {
-   
-    int n, m , k;
-    cin >> n >> m >> k;
-    vector<int> a(n), b(m);
-    map<int, set<int>> die; // die step , idices
-    for (int i = 0; i < n; ++i) {cin >> a[i]; removed[i] = 0;}
-    for (int i = 0; i < m; ++i) cin >> b[i];
-    sort(all(b));
-    for (int i = 0; i < n; i++) {
-        int pos = lower_bound(all(b), a[i]) - b.begin() - 1;
-        if (pos >= 0) die[b[pos] - a[i]].insert(i);
-        if (pos + 1 < m) die[b[pos + 1] - a[i]].insert(i);
-    }
-    // for (auto [k, v] : die) {
-    //     cout << k << " : ";
-    //     for (auto x : v) cout << x << " ";
-    //     cout << endl;
-    // }
-    string s; cin >> s;
-    int ans = n;
-    int steps = 0;
-    for (char x : s) {
-        steps += (x == 'R' ? 1 : -1);
+class SegmentTree {
+private:
+    vector<Node> seg;
+    Node skip;
+    int size = 1;
 
-        if (die.count(steps)) {
-            int killed = 0;
-            for (int idx : die[steps]) {
-                if (!removed[idx]) {
-                    removed[idx] = 1;
-                    killed++;
-                }
-            }
-            ans -= killed;
-            die[steps].clear();
+    Node merge(const Node &a, const Node &b) {
+        Node res;
+        if (a.pref == 'Z') return b;
+        if (b.pref == 'Z') return a;
+        res.pref = a.pref; res.suff = b.suff;
+        res.ans = a.ans + b.ans;
+        if (a.suff == b.pref) {
+            res.cnt = a.cnt + b.cnt;
+        } else {
+            res.ans += a.cnt / 2;
+            res.cnt = b.cnt;
         }
-
-        cout << ans << " ";
+        return res;
     }
-    cout << endl;
-}
 
-// void solve() {
-//     int n, m, k;
-//     cin >> n >> m >> k;
+    void build(const vector<char> &v, int x, int lx, int rx) {
+        if (lx == rx) {
+            if (lx < (int)v.size())
+                seg[x] = Node(1, 0, v[lx], v[lx]);
+            return;
+        }
+        int mid = (lx + rx) >> 1;
+        int l = x * 2 + 1;
+        int r = x * 2 + 2;
+        build(v, l, lx, mid);
+        build(v, r, mid + 1, rx);
+        seg[x] = merge(seg[l], seg[r]);
+    }
 
-//     vector<int> a(n), b(m);
-//     map<int, set<int>> die;
+    Node query(int x, int lx, int rx, int l, int r) {
+        if (rx < l || lx > r) return skip;
+        if (l <= lx && rx <= r) return seg[x];
+        int mid = (lx + rx) >> 1;
+        return merge(
+            query(x * 2 + 1, lx, mid, l, r),
+            query(x * 2 + 2, mid + 1, rx, l, r)
+        );
+    }
 
-//     for (int i = 0; i < n; ++i) {
-//         cin >> a[i];
-//         removed[i] = 0;
-//     }
-//     for (int i = 0; i < m; ++i) cin >> b[i];
+public:
+    SegmentTree(const vector<char> &v) {
+        skip = Node(0, 0, 'Z', 'Z');
+        while (size < (int)v.size()) size <<= 1;
+        seg.assign(size * 2, skip);
+        build(v, 0, 0, size - 1);
+    }
 
-//     sort(all(b));
+    ll query(int l, int r) {
+        Node res = query(0, 0, size - 1, l, r);
+        return res.ans + res.cnt / 2;
+    }
+};
 
-//     for (int i = 0; i < n; i++) {
-//         int pos = lower_bound(all(b), a[i]) - b.begin() - 1;
-//         if (pos >= 0) die[b[pos] - a[i]].insert(i);
-//         if (pos + 1 < m) die[b[pos + 1] - a[i]].insert(i);
-//     }
-
-//     string s;
-//     cin >> s;
-
-//     int ans = n;
-//     int steps = 0;
-
-//     for (char x : s) {
-//         steps += (x == 'R' ? 1 : -1);
-
-//         if (die.count(steps)) {
-//             int killed = 0;
-//             for (int idx : die[steps]) {
-//                 if (!removed[idx]) {
-//                     removed[idx] = 1;
-//                     killed++;
-//                 }
-//             }
-//             ans -= killed;
-//             die[steps].clear();
-//         }
-
-//         cout << ans << " ";
-//     }
-//     cout << endl;
-// }
-
-int32_t main() {
+int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
-    int t = 1;
-    cin >> t; 
-    while (t--) solve();
+    int n, q;
+    cin >> n;
+    vector<char> v(n);
+    for (int i = 0; i < n; i++) cin >> v[i];
+
+    SegmentTree sg(v);
+
+    cin >> q;
+    int l, r;
+    while (q--) {
+        cin >> l >> r;
+        cout << sg.query(--l, --r) << '\n';
+    }
 }
-  
