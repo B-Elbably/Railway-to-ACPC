@@ -1,0 +1,24 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+#define int long long
+#define all(x) (x).begin(), (x).end()
+#define endl '\n'
+
+void solve() {
+    int a1, b1, a2, b2;
+    cin >> a1 >> b1 >> a2 >> b2;
+    if ((a1 - b1) * (a2 - b2) < 0)
+        cout << "NO\n";
+    else
+        cout << "YES\n";
+}
+
+int32_t main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int t = 1;
+    cin >> t; 
+    while (t--) solve();
+}
