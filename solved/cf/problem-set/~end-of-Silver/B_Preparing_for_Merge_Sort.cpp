@@ -10,7 +10,31 @@ void solve() {
     cin >> n;
     vector<int> a(n);
     for (auto &x : a) cin >> x;
-
+    vector<vector<int>> ans;
+    vector<int> ref;
+    ans.push_back({a[0]});
+    ref.push_back(a[0]);
+    for (int i = 1; i < n; ++i) {
+        int l = 0, r = ans.size();
+        while (l < r) 
+        {
+            int mid = (l + r) / 2;
+            if (ref[mid] > a[i]) l = mid + 1;
+            else r = mid;
+        }
+        if (l == ans.size()) {
+			ans.push_back({a[i]});
+            ref.push_back(a[i]);
+		} else {
+			ans[l].push_back({a[i]});
+            ref[l] = a[i];
+		}
+        
+    }
+    for (auto &v : ans) {
+        for (auto &x : v) cout << x << ' ';
+        cout << endl;
+    }
 }
 
 int32_t main() {
@@ -21,10 +45,3 @@ int32_t main() {
     // cin >> t; 
     while (t--) solve();
 }
-
-
-// 1 3 2 7 4 6 5
-
-// 1 3 7 
-// 2 4 6
-// 5
