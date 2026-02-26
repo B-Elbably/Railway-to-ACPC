@@ -1,0 +1,771 @@
+#!/usr/bin/env python3
+"""
+cph.py - Competitive Programming Helper
+A unified tool for organizing solved problems using .cph metadata.
+
+Commands:
+    move    - Move solved files from root to appropriate folders
+    sort    - Organize files within solved/ into batches
+    stats   - Show statistics about solved problems
+    clean   - Remove empty directories
+"""
+
+import os
+import sys
+import json
+import shutil
+import argparse
+from pathlib import Path
+from datetime import datetime
+from collections import defaultdict
+from typing import Optional, Dict, List, Tuple
+
+# Configuration
+ROOT_DIR = Path(__file__).parent
+CPH_DIR = ROOT_DIR / ".cph"
+SOLVED_DIR = ROOT_DIR / "solved"
+BATCH_SIZE = 50
+
+# CSES Problem ID to Topic mapping (from https://cses.fi/problemset/)
+CSES_TOPICS = {
+    # Introductory Problems
+    1068: "Intro", 1083: "Intro", 1069: "Intro", 1094: "Intro", 1070: "Intro",
+    1071: "Intro", 1072: "Intro", 1092: "Intro", 1617: "Intro", 1618: "Intro",
+    1754: "Intro", 1755: "Intro", 2205: "Intro", 2165: "Intro", 1622: "Intro",
+    1623: "Intro", 1624: "Intro", 3399: "Intro", 3419: "Intro", 3217: "Intro",
+    3311: "Intro", 2431: "Intro", 1743: "Intro", 1625: "Intro",
+    
+    # Sorting and Searching
+    1621: "Sort", 1084: "Sort", 1090: "Sort", 1091: "Sort", 1619: "Sort",
+    1629: "Sort", 1640: "Sort", 1643: "Sort", 1074: "Sort", 2183: "Sort",
+    2216: "Sort", 2217: "Sort", 1141: "Sort", 1073: "Sort", 1163: "Sort",
+    3420: "Sort", 3421: "Sort", 2162: "Sort", 2163: "Sort", 2168: "Sort",
+    2169: "Sort", 1164: "Sort", 1620: "Sort", 1630: "Sort", 1631: "Sort",
+    1641: "Sort", 1642: "Sort", 1645: "Sort", 1660: "Sort", 1661: "Sort",
+    1662: "Sort", 2428: "Sort", 1085: "Sort", 1632: "Sort", 1644: "Sort",
+    
+    # Dynamic Programming
+    1633: "DP", 1634: "DP", 1635: "DP", 1636: "DP", 1637: "DP", 1638: "DP",
+    1158: "DP", 1746: "DP", 2413: "DP", 1639: "DP", 3403: "DP", 1744: "DP",
+    3359: "DP", 1745: "DP", 1097: "DP", 1093: "DP", 3314: "DP", 1145: "DP",
+    1140: "DP", 1653: "DP", 2181: "DP", 2220: "DP", 1748: "DP",
+    
+    # Graph Algorithms
+    1192: "Graph", 1193: "Graph", 1666: "Graph", 1667: "Graph", 1668: "Graph",
+    1669: "Graph", 1194: "Graph", 1671: "Graph", 1672: "Graph", 1673: "Graph",
+    1195: "Graph", 1197: "Graph", 1196: "Graph", 1678: "Graph", 1679: "Graph",
+    1680: "Graph", 1681: "Graph", 1202: "Graph", 1750: "Graph", 1160: "Graph",
+    1751: "Graph", 1675: "Graph", 1676: "Graph", 1682: "Graph", 1683: "Graph",
+    1684: "Graph", 1686: "Graph", 1691: "Graph", 1692: "Graph", 1693: "Graph",
+    1690: "Graph", 1689: "Graph", 1694: "Graph", 1695: "Graph", 1696: "Graph",
+    1711: "Graph",
+    
+    # Range Queries
+    1646: "Range", 1647: "Range", 1648: "Range", 1649: "Range", 1650: "Range",
+    1651: "Range", 1652: "Range", 1143: "Range", 1749: "Range", 1144: "Range",
+    2166: "Range", 2206: "Range", 3304: "Range", 3163: "Range", 1190: "Range",
+    3226: "Range", 1734: "Range", 3356: "Range", 2416: "Range", 1664: "Range",
+    1739: "Range", 1735: "Range", 1736: "Range", 1737: "Range", 2184: "Range",
+    
+    # Tree Algorithms
+    1674: "Tree", 1130: "Tree", 1131: "Tree", 1132: "Tree", 1133: "Tree",
+    1687: "Tree", 1688: "Tree", 1135: "Tree", 1136: "Tree", 1137: "Tree",
+    1138: "Tree", 2134: "Tree", 1139: "Tree", 2079: "Tree", 2080: "Tree",
+    2081: "Tree",
+    
+    # Mathematics
+    2164: "Math", 1095: "Math", 1712: "Math", 1713: "Math", 1081: "Math",
+    1082: "Math", 2182: "Math", 2185: "Math", 2417: "Math", 3396: "Math",
+    1079: "Math", 1715: "Math", 1716: "Math", 1717: "Math", 3397: "Math",
+    3398: "Math", 2064: "Math", 2187: "Math", 2209: "Math", 2210: "Math",
+    1722: "Math", 1096: "Math", 1723: "Math", 1724: "Math", 3154: "Math",
+    3355: "Math", 3406: "Math", 1725: "Math", 1726: "Math", 1727: "Math",
+    1728: "Math", 1729: "Math", 1730: "Math", 1098: "Math", 1099: "Math",
+    2207: "Math", 2208: "Math",
+    
+    # String Algorithms
+    1731: "String", 1753: "String", 1732: "String", 1733: "String", 1110: "String",
+    1111: "String", 3138: "String", 1112: "String", 2420: "String", 2102: "String",
+    2103: "String", 2104: "String", 2105: "String", 1149: "String", 2106: "String",
+    2107: "String", 3225: "String", 1113: "String", 2108: "String", 2109: "String",
+    2110: "String",
+    
+    # Geometry
+    2189: "Geo", 2190: "Geo", 2191: "Geo", 2192: "Geo", 2193: "Geo",
+    2194: "Geo", 2195: "Geo", 3410: "Geo", 3411: "Geo", 1740: "Geo",
+    3427: "Geo", 3428: "Geo", 3429: "Geo", 3430: "Geo", 1741: "Geo", 1742: "Geo",
+    
+    # Advanced Techniques
+    1628: "Adv", 2136: "Adv", 3360: "Adv", 2137: "Adv", 2138: "Adv",
+    2143: "Adv", 2072: "Adv", 2073: "Adv", 2074: "Adv", 2076: "Adv",
+    2077: "Adv", 2078: "Adv", 2084: "Adv", 2085: "Adv", 2086: "Adv",
+    2087: "Adv", 2088: "Adv", 2111: "Adv", 2112: "Adv", 2113: "Adv",
+    2101: "Adv", 2133: "Adv", 2121: "Adv", 2129: "Adv", 2130: "Adv",
+    
+    # Sliding Window
+    3220: "Slide", 3221: "Slide", 3426: "Slide", 3405: "Slide", 3222: "Slide",
+    3224: "Slide", 3219: "Slide", 1076: "Slide", 1077: "Slide", 3223: "Slide",
+    3227: "Slide",
+    
+    # Additional Problems
+    1087: "Extra", 3150: "Extra", 3190: "Extra", 1670: "Extra", 3175: "Extra",
+    2422: "Extra", 3151: "Extra", 3152: "Extra", 3306: "Extra", 3307: "Extra",
+    1142: "Extra", 2186: "Extra", 3169: "Extra", 3193: "Extra", 3294: "Extra",
+    3213: "Extra", 3214: "Extra", 2425: "Extra", 3301: "Extra", 3302: "Extra",
+    3361: "Extra", 1747: "Extra", 3404: "Extra", 1188: "Extra", 1086: "Extra",
+    2427: "Extra", 1147: "Extra", 1162: "Extra", 1191: "Extra", 2414: "Extra",
+    1161: "Extra",
+}
+
+# ANSI Colors
+class C:
+    RED = '\033[0;31m'
+    GREEN = '\033[0;32m'
+    YELLOW = '\033[1;33m'
+    BLUE = '\033[0;34m'
+    CYAN = '\033[0;36m'
+    GRAY = '\033[0;90m'
+    BOLD = '\033[1m'
+    NC = '\033[0m'
+
+# Platform detection patterns
+PLATFORMS = {
+    'cf': ['codeforces'],
+    'cses': ['cses'],
+    'usaco': ['usaco'],
+    'atcoder': ['atcoder'],
+    'spoj': ['spoj'],
+    'hackerrank': ['hackerrank'],
+    'leetcode': ['leetcode'],
+    'codechef': ['codechef'],
+    'other': []
+}
+
+URL_PATTERNS = {
+    'cf': ['codeforces.com'],
+    'cses': ['cses.fi'],
+    'usaco': ['usaco.org', 'usaco.guide'],
+    'atcoder': ['atcoder.jp'],
+    'spoj': ['spoj.com'],
+    'hackerrank': ['hackerrank.com'],
+    'leetcode': ['leetcode.com'],
+    'codechef': ['codechef.com'],
+}
+
+
+class CPHFile:
+    """Represents a .cph problem file with all metadata."""
+    
+    def __init__(self, path: Path):
+        self.path = path
+        self.data: Dict = {}
+        self._load()
+    
+    def _load(self):
+        try:
+            with open(self.path, 'r') as f:
+                self.data = json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            self.data = {}
+    
+    @property
+    def name(self) -> str:
+        return self.data.get('name', '')
+    
+    @property
+    def group(self) -> str:
+        return self.data.get('group', '')
+    
+    @property
+    def url(self) -> str:
+        return self.data.get('url', '')
+    
+    @property
+    def src_path(self) -> Optional[Path]:
+        src = self.data.get('srcPath', '')
+        return Path(src) if src else None
+    
+    @property
+    def created_at(self) -> datetime:
+        """Get creation time from file mtime."""
+        return datetime.fromtimestamp(self.path.stat().st_mtime)
+    
+    @property
+    def platform(self) -> str:
+        """Detect platform from group or URL."""
+        group_lower = self.group.lower()
+        url_lower = self.url.lower()
+        
+        # Check group first (more reliable)
+        for plat, keywords in PLATFORMS.items():
+            if any(kw in group_lower for kw in keywords):
+                return plat
+        
+        # Fallback to URL
+        for plat, patterns in URL_PATTERNS.items():
+            if any(pat in url_lower for pat in patterns):
+                return plat
+        
+        return 'other'
+    
+    @property
+    def contest_type(self) -> str:
+        """Extract contest type for CF (edu, div, global, etc.)."""
+        group = self.group.lower()
+        if 'educational' in group:
+            return 'edu'
+        elif 'global' in group:
+            return 'global'
+        elif 'div.' in group or 'div ' in group:
+            return 'div'
+        return 'other'
+    
+    @property
+    def round_number(self) -> Optional[int]:
+        """Extract round number from group."""
+        import re
+        group = self.group
+        
+        # Try to find round number
+        patterns = [
+            r'[Rr]ound[^\d]*(\d+)',
+            r'[Ee]du[^\d]*[Rr]ound[^\d]*(\d+)',
+            r'ABC[^\d]*(\d+)',
+            r'ARC[^\d]*(\d+)',
+            r'AGC[^\d]*(\d+)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, group)
+            if match:
+                return int(match.group(1))
+        return None
+
+
+def find_cph_file(filename: str) -> Optional[CPHFile]:
+    """Find the .cph file for a given source file."""
+    if not CPH_DIR.exists():
+        return None
+    
+    for cph_path in CPH_DIR.glob(f".{filename}*"):
+        if cph_path.suffix == '.prob':
+            return CPHFile(cph_path)
+    return None
+
+
+def get_all_cph_files() -> List[CPHFile]:
+    """Get all .cph files in the directory."""
+    if not CPH_DIR.exists():
+        return []
+    
+    files = []
+    for cph_path in CPH_DIR.glob("*.prob"):
+        files.append(CPHFile(cph_path))
+    return files
+
+
+def detect_platform_from_filename(filename: str) -> str:
+    """Fallback detection based on filename patterns."""
+    import re
+    
+    # USACO: Problem_X_Name.cpp
+    if filename.startswith('Problem_'):
+        return 'usaco'
+    
+    # Codeforces: A_Name.cpp, B_1_Name.cpp, etc.
+    if re.match(r'^[A-Z][0-9]?_[0-9]?_?[A-Z]', filename):
+        return 'cf'
+    
+    # CSES: TitleCase_Names.cpp (no letter prefix)
+    if re.match(r'^[A-Z][a-z]+_[A-Z]', filename) and not re.match(r'^[A-Z]_', filename):
+        return 'cses'
+    
+    return 'other'
+
+
+def move_files(dry_run: bool = False, verbose: bool = False):
+    """Move solved files from root to appropriate platform folders."""
+    print(f"{C.BLUE}{'='*50}{C.NC}")
+    print(f"{C.BLUE}  File Mover - Sorting by Platform{C.NC}")
+    print(f"{C.BLUE}{'='*50}{C.NC}\n")
+    
+    if dry_run:
+        print(f"{C.YELLOW}[DRY RUN] No files will be moved{C.NC}\n")
+    
+    # Create platform directories
+    for plat in PLATFORMS.keys():
+        (SOLVED_DIR / plat).mkdir(parents=True, exist_ok=True)
+    
+    moved = 0
+    skipped = 0
+    unknown = 0
+    
+    # Find all source files in root
+    for ext in ['*.cpp', '*.py']:
+        for src_file in ROOT_DIR.glob(ext):
+            filename = src_file.name
+            
+            # Skip template files
+            if filename in ['train.cpp', 'train.py', 'cph.py']:
+                continue
+            
+            # Find .cph file
+            cph = find_cph_file(filename)
+            
+            if cph:
+                platform = cph.platform
+                method = f"cph: {cph.group[:40]}"
+            else:
+                platform = detect_platform_from_filename(filename)
+                method = "filename pattern"
+            
+            if platform == 'other' and not cph:
+                print(f"{C.RED}[UNKNOWN]{C.NC} {filename}")
+                unknown += 1
+                continue
+            
+            dest_dir = SOLVED_DIR / platform
+            dest_file = dest_dir / filename
+            
+            if dest_file.exists():
+                print(f"{C.YELLOW}[EXISTS]{C.NC} {filename}")
+                skipped += 1
+                continue
+            
+            if dry_run:
+                print(f"{C.GREEN}[WOULD MOVE]{C.NC} {filename} -> {platform}/ ({method})")
+            else:
+                shutil.move(str(src_file), str(dest_file))
+                print(f"{C.GREEN}[MOVED]{C.NC} {filename} -> {platform}/ ({method})")
+            
+            moved += 1
+    
+    print(f"\n{C.BLUE}{'='*50}{C.NC}")
+    print(f"  {C.GREEN}Moved:{C.NC} {moved}  {C.YELLOW}Skipped:{C.NC} {skipped}  {C.RED}Unknown:{C.NC} {unknown}")
+    print(f"{C.BLUE}{'='*50}{C.NC}")
+
+
+def get_cf_category(cph: Optional[CPHFile]) -> Tuple[str, Optional[int]]:
+    """
+    Categorize CF problem into:
+    - ("R1-1000", round_num) for rounds 1-1000
+    - ("R1001-2000", round_num) for rounds 1001-2000
+    - ("Edu_Rounds", round_num) for Educational Rounds
+    - ("Edu", topic) for EDU section (learning materials)
+    - ("Gym", gym_id) for Gym contests
+    - ("Other", None) for other contests
+    """
+    import re
+    
+    if not cph:
+        return ("Other", None)
+    
+    url = cph.url
+    group = cph.group
+    
+    # Check for Gym
+    gym_match = re.search(r'gym/(\d+)', url, re.I)
+    if gym_match:
+        return ("Gym", int(gym_match.group(1)))
+    
+    # Check for EDU section (learning materials - Binary Search, Segment Tree, etc.)
+    if re.search(r'EDU.*(?:segment|tree|dsu|binary|suffix|two.?pointer)', group, re.I):
+        return ("Edu", None)
+    
+    # Check for Educational Round (competition)
+    edu_round = re.search(r'[Ee]ducational[^\d]*[Rr]ound[^\d]*(\d+)', group)
+    if edu_round:
+        return ("Edu_Rounds", int(edu_round.group(1)))
+    
+    # Check for Global Round
+    global_match = re.search(r'[Gg]lobal[^\d]*[Rr]ound[^\d]*(\d+)', group)
+    if global_match:
+        return ("Other", int(global_match.group(1)))
+    
+    # Check for regular Round
+    round_match = re.search(r'[Rr]ound[^\d]*(\d+)', group)
+    if round_match:
+        num = int(round_match.group(1))
+        if num <= 1000:
+            return ("R1-1000", num)
+        else:
+            return ("R1001-2000", num)
+    
+    # Fallback: check contest ID from URL
+    contest_match = re.search(r'contest/(\d+)', url)
+    if contest_match:
+        contest_id = int(contest_match.group(1))
+        # Low contest IDs often correspond to early rounds
+        if contest_id < 600:
+            return ("R1-1000", None)
+    
+    return ("Other", None)
+
+
+def sort_cf_files(dry_run: bool = False):
+    """Sort CF files into R1-1000, R1001-2000, Edu, Edu_Rounds, Gym, Other."""
+    print(f"{C.BLUE}{'='*50}{C.NC}")
+    print(f"{C.BLUE}  CF Sorter - Organizing by Category{C.NC}")
+    print(f"{C.BLUE}{'='*50}{C.NC}\n")
+    
+    if dry_run:
+        print(f"{C.YELLOW}[DRY RUN] No changes will be made{C.NC}\n")
+    
+    cf_dir = SOLVED_DIR / 'cf'
+    if not cf_dir.exists():
+        print(f"{C.RED}CF directory not found{C.NC}")
+        return
+    
+    # Collect ALL CF files from all subdirectories
+    files_data = []
+    
+    for ext in ['*.cpp', '*.py']:
+        for src_file in cf_dir.rglob(ext):
+            if src_file.is_file() and not src_file.name.startswith('.'):
+                cph = find_cph_file(src_file.name)
+                category, sort_key = get_cf_category(cph)
+                created = cph.created_at if cph else datetime.fromtimestamp(src_file.stat().st_mtime)
+                
+                files_data.append({
+                    'path': src_file,
+                    'name': src_file.name,
+                    'category': category,
+                    'sort_key': sort_key,
+                    'created': created,
+                    'cph': cph
+                })
+    
+    print(f"Found {len(files_data)} CF files to organize\n")
+    
+    # Group by category
+    categories: Dict[str, List] = defaultdict(list)
+    for f in files_data:
+        categories[f['category']].append(f)
+    
+    # Sort within each category and move
+    moved = 0
+    cat_order = ["R1-1000", "R1001-2000", "Edu_Rounds", "Edu", "Gym", "Other"]
+    
+    for category in cat_order:
+        if category not in categories:
+            continue
+        
+        items = categories[category]
+        # Sort by round number if available, then by created date
+        items.sort(key=lambda x: (x['sort_key'] or 9999, x['created']))
+        
+        cat_dir = cf_dir / category
+        
+        for file_info in items:
+            src_path = file_info['path']
+            dest_path = cat_dir / file_info['name']
+            
+            sk = file_info['sort_key']
+            sk_str = f"#{sk}" if sk else ""
+            
+            if src_path.parent == cat_dir:
+                continue  # Already in correct place
+            
+            if dry_run:
+                print(f"{C.GREEN}[{category:12}]{C.NC} {sk_str:5} {file_info['name'][:30]}")
+            else:
+                cat_dir.mkdir(parents=True, exist_ok=True)
+                if not dest_path.exists():
+                    shutil.move(str(src_path), str(dest_path))
+                    print(f"{C.GREEN}[{category:12}]{C.NC} {sk_str:5} {file_info['name'][:30]}")
+                    moved += 1
+                else:
+                    print(f"{C.YELLOW}[EXISTS]{C.NC} {file_info['name']}")
+    
+    # Clean up empty directories
+    if not dry_run:
+        for subdir in list(cf_dir.iterdir()):
+            if subdir.is_dir() and subdir.name not in ['.cph'] + cat_order:
+                try:
+                    # Remove only if empty
+                    if not any(subdir.iterdir()):
+                        subdir.rmdir()
+                except:
+                    pass
+    
+    # Summary
+    print(f"\n{C.BLUE}{'='*50}{C.NC}")
+    summary = ", ".join(f"{cat}:{len(categories.get(cat, []))}" for cat in cat_order if cat in categories)
+    print(f"  {summary}")
+    print(f"  Organized {moved} files")
+    print(f"{C.BLUE}{'='*50}{C.NC}")
+
+
+def sort_by_contest(platform: str, dry_run: bool = False):
+    """Sort files by contest/round."""
+    print(f"{C.BLUE}{'='*50}{C.NC}")
+    print(f"{C.BLUE}  Contest Sorter - {platform.upper()}{C.NC}")
+    print(f"{C.BLUE}{'='*50}{C.NC}\n")
+    
+    plat_dir = SOLVED_DIR / platform
+    if not plat_dir.exists():
+        print(f"{C.RED}Directory not found: {plat_dir}{C.NC}")
+        return
+    
+    # Group files by contest
+    contests: Dict[str, List[Tuple[Path, CPHFile]]] = defaultdict(list)
+    
+    for src_file in plat_dir.glob('*.[cp][py]*'):
+        if src_file.is_file():
+            cph = find_cph_file(src_file.name)
+            if cph:
+                contest_name = extract_contest_name(cph, platform)
+                contests[contest_name].append((src_file, cph))
+    
+    moved = 0
+    for contest_name, files in sorted(contests.items()):
+        if not contest_name:
+            continue
+        
+        contest_dir = plat_dir / contest_name
+        
+        for src_file, cph in files:
+            dest_file = contest_dir / src_file.name
+            
+            if dry_run:
+                print(f"{C.GREEN}[{contest_name}]{C.NC} {src_file.name}")
+            else:
+                contest_dir.mkdir(parents=True, exist_ok=True)
+                if not dest_file.exists():
+                    shutil.move(str(src_file), str(dest_file))
+                    print(f"{C.GREEN}[{contest_name}]{C.NC} {src_file.name}")
+                    moved += 1
+    
+    print(f"\n{C.BLUE}Moved {moved} files{C.NC}")
+
+
+def get_cses_topic(cph: Optional[CPHFile]) -> str:
+    """Get CSES topic from problem URL."""
+    if not cph or not cph.url:
+        return "Other"
+    
+    import re
+    # Extract problem ID from URL: https://cses.fi/problemset/task/1132/
+    match = re.search(r'/task/(\d+)', cph.url)
+    if match:
+        problem_id = int(match.group(1))
+        return CSES_TOPICS.get(problem_id, "Other")
+    return "Other"
+
+
+def sort_cses_files(dry_run: bool = False):
+    """Sort CSES files by topic."""
+    print(f"{C.BLUE}{'='*50}{C.NC}")
+    print(f"{C.BLUE}  CSES Sorter - Organizing by Topic{C.NC}")
+    print(f"{C.BLUE}{'='*50}{C.NC}\n")
+    
+    if dry_run:
+        print(f"{C.YELLOW}[DRY RUN] No changes will be made{C.NC}\n")
+    
+    cses_dir = SOLVED_DIR / 'cses'
+    if not cses_dir.exists():
+        print(f"{C.RED}CSES directory not found{C.NC}")
+        return
+    
+    # Collect all CSES files
+    files_data = []
+    
+    for ext in ['*.cpp', '*.py']:
+        for src_file in cses_dir.rglob(ext):
+            if src_file.is_file() and not src_file.name.startswith('.'):
+                cph = find_cph_file(src_file.name)
+                topic = get_cses_topic(cph)
+                
+                files_data.append({
+                    'path': src_file,
+                    'name': src_file.name,
+                    'topic': topic,
+                    'cph': cph
+                })
+    
+    print(f"Found {len(files_data)} CSES files to organize\n")
+    
+    # Group by topic
+    topics: Dict[str, List] = defaultdict(list)
+    for f in files_data:
+        topics[f['topic']].append(f)
+    
+    moved = 0
+    for topic, files in sorted(topics.items()):
+        topic_dir = cses_dir / topic
+        
+        for file_info in files:
+            src_path = file_info['path']
+            dest_path = topic_dir / file_info['name']
+            
+            if dry_run:
+                print(f"{C.GREEN}[{topic:6}]{C.NC} {file_info['name']}")
+            else:
+                topic_dir.mkdir(parents=True, exist_ok=True)
+                if src_path != dest_path:
+                    if dest_path.exists():
+                        print(f"{C.YELLOW}[EXISTS]{C.NC} {file_info['name']}")
+                    else:
+                        shutil.move(str(src_path), str(dest_path))
+                        print(f"{C.GREEN}[{topic:6}]{C.NC} {file_info['name']}")
+                        moved += 1
+    
+    # Clean up empty directories
+    if not dry_run:
+        for subdir in list(cses_dir.iterdir()):
+            if subdir.is_dir() and subdir.name != '.cph':
+                try:
+                    if not any(subdir.iterdir()):
+                        subdir.rmdir()
+                except:
+                    pass
+    
+    print(f"\n{C.BLUE}{'='*50}{C.NC}")
+    topic_summary = ", ".join(f"{t}:{len(files)}" for t, files in sorted(topics.items()))
+    print(f"  Organized {moved} files: {topic_summary}")
+    print(f"{C.BLUE}{'='*50}{C.NC}")
+
+
+def extract_contest_name(cph: CPHFile, platform: str) -> str:
+    """Extract a clean contest folder name."""
+    import re
+    group = cph.group
+    
+    if platform == 'cf':
+        # Educational Round
+        if match := re.search(r'[Ee]ducational[^\d]*[Rr]ound[^\d]*(\d+)', group):
+            return f"Edu_{match.group(1)}"
+        # Global Round
+        if match := re.search(r'[Gg]lobal[^\d]*[Rr]ound[^\d]*(\d+)', group):
+            return f"Global_{match.group(1)}"
+        # Regular Round
+        if match := re.search(r'[Rr]ound[^\d]*(\d+)', group):
+            return f"R{match.group(1)}"
+        return ""
+    
+    elif platform == 'atcoder':
+        if match := re.search(r'(ABC|ARC|AGC)[^\d]*(\d+)', group):
+            return f"{match.group(1)}_{match.group(2)}"
+        return ""
+    
+    elif platform == 'usaco':
+        year_match = re.search(r'(\d{4})', group)
+        div_match = re.search(r'(Bronze|Silver|Gold|Platinum)', group, re.I)
+        contest_match = re.search(r'(January|February|December|US\s*Open)', group, re.I)
+        
+        parts = []
+        if year_match:
+            parts.append(year_match.group(1))
+        if contest_match:
+            parts.append(contest_match.group(1).replace(' ', ''))
+        if div_match:
+            parts.append(div_match.group(1).capitalize())
+        
+        return '_'.join(parts) if parts else ""
+    
+    return ""
+
+
+def show_stats():
+    """Display statistics about solved problems."""
+    print(f"{C.BLUE}{'='*50}{C.NC}")
+    print(f"{C.BLUE}  Problem Statistics{C.NC}")
+    print(f"{C.BLUE}{'='*50}{C.NC}\n")
+    
+    cph_files = get_all_cph_files()
+    
+    # Platform counts
+    platforms = defaultdict(int)
+    for cph in cph_files:
+        platforms[cph.platform] += 1
+    
+    # Date ranges
+    dates = [cph.created_at for cph in cph_files]
+    
+    print(f"{C.BOLD}Total Problems:{C.NC} {len(cph_files)}\n")
+    
+    print(f"{C.BOLD}By Platform:{C.NC}")
+    for plat, count in sorted(platforms.items(), key=lambda x: -x[1]):
+        bar = '█' * (count // 5)
+        print(f"  {plat:12} {count:4}  {C.GREEN}{bar}{C.NC}")
+    
+    if dates:
+        print(f"\n{C.BOLD}Date Range:{C.NC}")
+        print(f"  First: {min(dates).strftime('%Y-%m-%d')}")
+        print(f"  Last:  {max(dates).strftime('%Y-%m-%d')}")
+    
+    # CF specific stats
+    cf_files = [cph for cph in cph_files if cph.platform == 'cf']
+    if cf_files:
+        print(f"\n{C.BOLD}Codeforces Details:{C.NC}")
+        types = defaultdict(int)
+        for cph in cf_files:
+            types[cph.contest_type] += 1
+        for t, count in sorted(types.items(), key=lambda x: -x[1]):
+            print(f"  {t:12} {count}")
+
+
+def clean_empty_dirs():
+    """Remove empty directories."""
+    print(f"{C.BLUE}Cleaning empty directories...{C.NC}")
+    
+    removed = 0
+    for dirpath, dirnames, filenames in os.walk(str(SOLVED_DIR), topdown=False):
+        for dirname in dirnames:
+            full_path = Path(dirpath) / dirname
+            try:
+                if not any(full_path.iterdir()):
+                    full_path.rmdir()
+                    print(f"{C.YELLOW}Removed:{C.NC} {full_path}")
+                    removed += 1
+            except OSError:
+                pass
+    
+    print(f"\nRemoved {removed} empty directories")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Competitive Programming Helper - Organize solved problems',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  cph.py move             Move files from root to solved/
+  cph.py sort             Sort CF files by round (batches of 50)
+  cph.py sort --platform cses   Sort CSES files by topic
+  cph.py sort --by-contest      Sort by contest name instead
+  cph.py stats            Show statistics
+  cph.py clean            Remove empty directories
+        """
+    )
+    
+    parser.add_argument('command', choices=['move', 'sort', 'stats', 'clean'],
+                        help='Command to execute')
+    parser.add_argument('-n', '--dry-run', action='store_true',
+                        help='Show what would be done without doing it')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Verbose output')
+    parser.add_argument('--by-contest', action='store_true',
+                        help='Sort by contest name instead of batches')
+    parser.add_argument('--platform', default='cf',
+                        help='Platform to sort (default: cf, options: cf, cses)')
+    
+    args = parser.parse_args()
+    
+    if args.command == 'move':
+        move_files(dry_run=args.dry_run, verbose=args.verbose)
+    elif args.command == 'sort':
+        if args.platform == 'cses':
+            sort_cses_files(dry_run=args.dry_run)
+        elif args.by_contest:
+            sort_by_contest(args.platform, dry_run=args.dry_run)
+        else:
+            sort_cf_files(dry_run=args.dry_run)
+    elif args.command == 'stats':
+        show_stats()
+    elif args.command == 'clean':
+        clean_empty_dirs()
+
+
+if __name__ == '__main__':
+    main()
