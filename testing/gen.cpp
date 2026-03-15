@@ -8,11 +8,11 @@ int randInt(int l, int r) {
 int main(int argc, char* argv[]) {
     srand(atoi(argv[1]));
 
-    int n = randInt(5, 9);
+    int n = randInt(2,4);
     cout << n << "\n";
 
     for (int i = 0; i < n; i++) {
-        cout << randInt(-5, 5) << " ";
+        cout << randInt(0,1) << "";
     }
     cout << "\n";
 }

@@ -1,32 +1,31 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-bool valid(vector<int> a) {
-    long long sum = 0;
-    for (int x : a) {
-        sum += x;
-        if (sum == 0) return false;
-    }
-    return true;
+string M;
+int N;
+long long MOD = 1e9 + 7;
+
+long long dfs(int l, int r, int shika, int koshi) {
+    if (l > r) return 1; // all cookies eaten
+
+    long long res = 0;
+
+    // take from left
+    if (M[l] == '1') // deer cookie → Shikanoko
+        res += dfs(l + 1, r, shika + 1, koshi);
+    else if (M[l] == '0' && shika >= koshi + 1) // human cookie → Koshi
+        res += dfs(l + 1, r, shika, koshi + 1);
+
+    // take from right
+    if (M[r] == '1')
+        res += dfs(l, r - 1, shika + 1, koshi);
+    else if (M[r] == '0' && shika >= koshi + 1)
+        res += dfs(l, r - 1, shika, koshi + 1);
+
+    return res % MOD;
 }
 
 int main() {
-    int n;
-    cin >> n;
-
-    vector<int> a(n);
-    for (int &x : a) cin >> x;
-
-    sort(a.begin(), a.end());
-
-    do {
-        if (valid(a)) {
-            cout << "YES\n";
-            for (int x : a) cout << x << " ";
-            cout << "\n";
-            // return 0;
-        }
-    } while (next_permutation(a.begin(), a.end()));
-
-    cout << "NO\n";
+    cin >> N >> M;
+    cout << dfs(0, N - 1, 0, 0) << endl;
 }

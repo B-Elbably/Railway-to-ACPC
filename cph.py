@@ -35,6 +35,8 @@ CPH_DIR = ROOT_DIR / ".cph"
 SOLVED_DIR = ROOT_DIR / "solved"
 CACHE_DIR = ROOT_DIR / ".cache"
 CACHE_FILE = CACHE_DIR / "cf_contests.json"
+SOURCE_EXTENSIONS = {'.cpp', '.py', '.java', '.c', '.cc', '.rs', '.go', '.kt'}
+_CPH_INDEX = None
 
 # ANSI Colors
 class C:
@@ -379,49 +381,121 @@ class CPHFile:
 # ============================================================================
 
 def find_cph_files() -> Dict[Path, CPHFile]:
-    """Find all .cph/*.prob files recursively."""
+    """Find files with matching metadata in the workspace."""
     result = {}
-    for cph_dir in ROOT_DIR.rglob('.cph'):
-        if not cph_dir.is_dir():
-            continue
-        for prob_file in cph_dir.glob('*.prob'):
-            cph = CPHFile(prob_file)
-            if cph.src_path and cph.src_path.exists():
-                result[cph.src_path] = cph
+    for src_file in find_source_files(ROOT_DIR, recursive=False):
+        cph = get_cph_for_file(src_file)
+        if cph:
+            result[src_file] = cph
+    if SOLVED_DIR.exists():
+        for src_file in find_source_files(SOLVED_DIR, recursive=True):
+            cph = get_cph_for_file(src_file)
+            if cph:
+                result[src_file] = cph
     return result
 
 
-def find_source_files(directory: Path) -> List[Path]:
-    """Find all source code files in a directory."""
-    extensions = {'.cpp', '.py', '.java', '.c', '.cc', '.rs', '.go', '.kt'}
-    files = []
-    for ext in extensions:
-        files.extend(directory.glob(f'*{ext}'))
-    return files
+def is_source_file(path: Path) -> bool:
+    """Check whether a path is a supported source file."""
+    return path.is_file() and path.suffix in SOURCE_EXTENSIONS and '.cph' not in path.parts
+
+
+def find_source_files(directory: Path, recursive: bool = False) -> List[Path]:
+    """Find source code files in a directory."""
+    if not directory.exists():
+        return []
+
+    iterator = directory.rglob('*') if recursive else directory.iterdir()
+    return [path for path in iterator if is_source_file(path)]
+
+
+def invalidate_cph_index():
+    """Invalidate the cached metadata index after filesystem updates."""
+    global _CPH_INDEX
+    _CPH_INDEX = None
+
+
+def get_cph_index():
+    """Build an index of .prob metadata files for fast lookup."""
+    global _CPH_INDEX
+    if _CPH_INDEX is not None:
+        return _CPH_INDEX
+
+    exact = {}
+    local_by_name = defaultdict(list)
+
+    for cph_dir in ROOT_DIR.rglob('.cph'):
+        if not cph_dir.is_dir():
+            continue
+        cph_dir_key = str(cph_dir.resolve())
+        for prob_file in cph_dir.glob('*.prob'):
+            cph = CPHFile(prob_file)
+            if cph.src_path:
+                exact[str(cph.src_path.resolve())] = prob_file
+                local_by_name[(cph_dir_key, Path(cph.src_path).name)].append(prob_file)
+
+    _CPH_INDEX = (exact, local_by_name)
+    return _CPH_INDEX
+
+
+def find_prob_file_for_src(src_file: Path) -> Optional[Path]:
+    """Locate the metadata file for a source file.
+
+    Falls back to filename-based matching so previously moved files can still be
+    categorized even if their stored srcPath was not updated.
+    """
+    exact, local_by_name = get_cph_index()
+    resolved_src = str(src_file.resolve())
+
+    if resolved_src in exact:
+        return exact[resolved_src]
+
+    for parent in (src_file.parent, *src_file.parents):
+        cph_dir = parent / '.cph'
+        if cph_dir.exists():
+            candidates = local_by_name.get((str(cph_dir.resolve()), src_file.name), [])
+            if candidates:
+                return candidates[0]
+        if parent == ROOT_DIR:
+            break
+
+    return None
+
+
+def update_prob_src_path(prob_file: Path, src_file: Path):
+    """Rewrite srcPath in a .prob file after moving its source file."""
+    try:
+        with open(prob_file, 'r') as f:
+            data = json.load(f)
+        data['srcPath'] = str(src_file)
+        with open(prob_file, 'w') as f:
+            json.dump(data, f, separators=(',', ':'))
+    except Exception:
+        pass
+
+
+def move_file_with_metadata(src_file: Path, dest_file: Path):
+    """Move a source file and its matching .prob metadata together."""
+    prob_file = find_prob_file_for_src(src_file)
+
+    dest_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(src_file), str(dest_file))
+
+    if prob_file:
+        dest_prob_dir = dest_file.parent / '.cph'
+        dest_prob_dir.mkdir(parents=True, exist_ok=True)
+        dest_prob = dest_prob_dir / prob_file.name
+        if prob_file.resolve() != dest_prob.resolve():
+            shutil.move(str(prob_file), str(dest_prob))
+        update_prob_src_path(dest_prob, dest_file)
+
+    invalidate_cph_index()
 
 
 def get_cph_for_file(src_file: Path) -> Optional[CPHFile]:
     """Find the .cph metadata for a source file."""
-    # Check local .cph directory
-    cph_dir = src_file.parent / '.cph'
-    if cph_dir.exists():
-        for prob in cph_dir.glob('*.prob'):
-            cph = CPHFile(prob)
-            if cph.src_path and cph.src_path.resolve() == src_file.resolve():
-                return cph
-    
-    # Check parent directories
-    for parent in src_file.parents:
-        cph_dir = parent / '.cph'
-        if cph_dir.exists():
-            for prob in cph_dir.glob('*.prob'):
-                cph = CPHFile(prob)
-                if cph.src_path and cph.src_path.resolve() == src_file.resolve():
-                    return cph
-        if parent == ROOT_DIR:
-            break
-    
-    return None
+    prob_file = find_prob_file_for_src(src_file)
+    return CPHFile(prob_file) if prob_file else None
 
 
 # ============================================================================
@@ -568,8 +642,7 @@ def move_files(dry_run: bool = False):
         print(f"{C.G}[MOVE]{C.NC} {src_file.name} → {platform}/")
         
         if not dry_run:
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(src_file), str(dest_file))
+            move_file_with_metadata(src_file, dest_file)
         moved += 1
     
     print(f"\nMoved {moved} files")
@@ -594,12 +667,7 @@ def sort_cf_files(dry_run: bool = False):
         return
     
     files_data = []
-    for src_file in cf_dir.rglob('*'):
-        if src_file.is_dir() or src_file.suffix not in {'.cpp', '.py', '.java', '.c'}:
-            continue
-        if '.cph' in str(src_file):
-            continue
-        
+    for src_file in find_source_files(cf_dir, recursive=False):
         cph = get_cph_for_file(src_file)
         category, sort_key = categorize_cf_problem(cph)
         files_data.append((src_file, category, sort_key, cph))
@@ -634,9 +702,8 @@ def sort_cf_files(dry_run: bool = False):
             print(f"[{category:12}] {key_str:6} {name_short}")
             
             if not dry_run:
-                dest_dir.mkdir(parents=True, exist_ok=True)
                 if not dest_file.exists():
-                    shutil.move(str(src_file), str(dest_file))
+                    move_file_with_metadata(src_file, dest_file)
                     moved += 1
     
     print("\n" + "=" * 50)
@@ -663,12 +730,7 @@ def sort_cses_files(dry_run: bool = False):
     moved = 0
     stats = defaultdict(int)
     
-    for src_file in cses_dir.rglob('*'):
-        if src_file.is_dir() or src_file.suffix not in {'.cpp', '.py', '.java'}:
-            continue
-        if '.cph' in str(src_file):
-            continue
-        
+    for src_file in find_source_files(cses_dir, recursive=False):
         cph = get_cph_for_file(src_file)
         topic = categorize_cses_problem(cph)
         stats[topic] += 1
@@ -682,9 +744,8 @@ def sort_cses_files(dry_run: bool = False):
         print(f"[{topic:8}] {src_file.stem[:30]}")
         
         if not dry_run:
-            dest_dir.mkdir(parents=True, exist_ok=True)
             if not dest_file.exists():
-                shutil.move(str(src_file), str(dest_file))
+                move_file_with_metadata(src_file, dest_file)
                 moved += 1
     
     summary = ", ".join(f"{k}:{v}" for k, v in sorted(stats.items(), key=lambda x: -x[1]))
@@ -706,12 +767,7 @@ def sort_usaco_files(dry_run: bool = False):
     moved = 0
     stats = defaultdict(int)
     
-    for src_file in usaco_dir.rglob('*'):
-        if src_file.is_dir() or src_file.suffix not in {'.cpp', '.py', '.java'}:
-            continue
-        if '.cph' in str(src_file):
-            continue
-        
+    for src_file in find_source_files(usaco_dir, recursive=False):
         cph = get_cph_for_file(src_file)
         division, _ = categorize_usaco_problem(cph)
         stats[division] += 1
@@ -725,9 +781,8 @@ def sort_usaco_files(dry_run: bool = False):
         print(f"[{division:10}] {src_file.stem[:30]}")
         
         if not dry_run:
-            dest_dir.mkdir(parents=True, exist_ok=True)
             if not dest_file.exists():
-                shutil.move(str(src_file), str(dest_file))
+                move_file_with_metadata(src_file, dest_file)
                 moved += 1
     
     summary = ", ".join(f"{k}:{v}" for k, v in sorted(stats.items(), key=lambda x: -x[1]))

@@ -1,87 +1,63 @@
 #include <bits/stdc++.h>
 using namespace std;
-typedef long long ll;
 
-struct Node {
-    ll cnt, ans;
-    char pref, suff;
-    Node(ll c = 0, ll a = 0, char p = 'Z', char s = 'Z') : cnt(c), ans(a), pref(p), suff(s) {}
-};
+#define int long long
+#define all(x) (x).begin(), (x).end()
+#define endl '\n'
 
-class SegmentTree {
-private:
-    vector<Node> seg;
-    Node skip;
-    int size = 1;
+const int MOD = 1e9 + 7;
+int n;
+string a;
+vector<int> pref;
+map<pair<int, int>, int> memo;
 
-    Node merge(const Node &a, const Node &b) {
-        Node res;
-        if (a.pref == 'Z') return b;
-        if (b.pref == 'Z') return a;
-        res.pref = a.pref; res.suff = b.suff;
-        res.ans = a.ans + b.ans;
-        if (a.suff == b.pref) {
-            res.cnt = a.cnt + b.cnt;
-        } else {
-            res.ans += a.cnt / 2;
-            res.cnt = b.cnt;
-        }
-        return res;
+int go(int L, int R) {
+    if (L > R) return 1;
+    if (memo.count({L, R})) return memo[{L, R}];
+    int &ret = memo[{L, R}];
+    
+    int rem = pref[R + 1] - pref[L];
+    int ones = pref[n] - rem;
+    int zero = (n - (R - L + 1)) - ones;
+    ret = 0;
+
+    // go
+    zero += (a[L] == '0');
+    ones += (a[L] == '1');
+    if (ones >= zero) {
+        ret = (ret + go(L + 1, R)) % MOD;
     }
+    if (L >= R) return ret;
+    zero -= (a[L] == '0');
+    ones -= (a[L] == '1');
 
-    void build(const vector<char> &v, int x, int lx, int rx) {
-        if (lx == rx) {
-            if (lx < (int)v.size())
-                seg[x] = Node(1, 0, v[lx], v[lx]);
-            return;
-        }
-        int mid = (lx + rx) >> 1;
-        int l = x * 2 + 1;
-        int r = x * 2 + 2;
-        build(v, l, lx, mid);
-        build(v, r, mid + 1, rx);
-        seg[x] = merge(seg[l], seg[r]);
+
+    zero += (a[R] == '0');
+    ones += (a[R] == '1');
+    // back
+    if (ones >= zero) {
+        ret = (ret + go(L, R - 1)) % MOD;
     }
+    return ret;
+}
 
-    Node query(int x, int lx, int rx, int l, int r) {
-        if (rx < l || lx > r) return skip;
-        if (l <= lx && rx <= r) return seg[x];
-        int mid = (lx + rx) >> 1;
-        return merge(
-            query(x * 2 + 1, lx, mid, l, r),
-            query(x * 2 + 2, mid + 1, rx, l, r)
-        );
+void solve() {
+    cin >> n;
+    pref.assign(n + 1, 0);
+    // string a;
+    cin >> a;
+    for (int i = 0; i < n; i++){
+        pref[i + 1] = pref[i] + (a[i] == '1');
     }
+    int ans = go(0, n - 1) + 1;
+    cout << ans % MOD << endl;
+}
 
-public:
-    SegmentTree(const vector<char> &v) {
-        skip = Node(0, 0, 'Z', 'Z');
-        while (size < (int)v.size()) size <<= 1;
-        seg.assign(size * 2, skip);
-        build(v, 0, 0, size - 1);
-    }
-
-    ll query(int l, int r) {
-        Node res = query(0, 0, size - 1, l, r);
-        return res.ans + res.cnt / 2;
-    }
-};
-
-int main() {
+int32_t main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
-    int n, q;
-    cin >> n;
-    vector<char> v(n);
-    for (int i = 0; i < n; i++) cin >> v[i];
-
-    SegmentTree sg(v);
-
-    cin >> q;
-    int l, r;
-    while (q--) {
-        cin >> l >> r;
-        cout << sg.query(--l, --r) << '\n';
-    }
+    int t = 1;
+    // cin >> t;
+    while (t--) solve();
 }
