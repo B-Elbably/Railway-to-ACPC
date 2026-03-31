@@ -6,11 +6,16 @@ using namespace std;
 #define endl '\n'
 
 void solve() {
-    int n;
-    cin >> n;
+    int n, m;
+    cin >> n >> m;
     vector<int> a(n);
+    set<int> b;
     for (auto &x : a) cin >> x;
-
+    for (int i = 0; i < m; ++i) {
+        int x; cin >> x;
+        b.insert(x);
+    }
+    
 }
 
 int32_t main() {
