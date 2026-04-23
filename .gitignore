@@ -4,6 +4,9 @@
 # Competitive programming helpers
 .cph/
 
+__pycache__/
+*.pyc
+
 # Temp or ignored directories
 # ignored/
 # skipped/
@@ -15,6 +18,3 @@
 # OS files
 .DS_Store
 Thumbs.db
-
-
-moved_files.sh
