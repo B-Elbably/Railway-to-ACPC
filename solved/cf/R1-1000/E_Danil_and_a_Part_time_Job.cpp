@@ -18,9 +18,9 @@ private:
     }
 
     void apply(int x, int lx, int rx, long long v) {
-        seg[x].val += (rx - lx) * v;
-        seg[x].lazy += v;
-        seg[x].has_lazy = true;
+        seg[x].val = (rx - lx) - seg[x].val;
+        seg[x].lazy = v;
+        seg[x].has_lazy = !seg[x].has_lazy;
     }
 
     void push(int x, int lx, int rx) {
@@ -88,41 +88,69 @@ public:
     }
 };
 
+struct EulerTour {
+    int n, timer;
+    vector<int> tin, tout;
+    vector<long long> tour;
+    const vector<long long>& vals; 
+    const vector<vector<int>>& adj;
+    unique_ptr<SegmentTree> st;
+    
+    EulerTour(int n, const vector<long long>& v, const vector<vector<int>>& g, int root = 1) 
+        : n(n), timer(0), tin(n + 1), tout(n + 1), tour(n), vals(v), adj(g) {
+        
+        dfs(root, 0);
+        st = make_unique<SegmentTree>(tour);
+    }
+
+    void dfs(int u, int p) {
+        tin[u] = timer;
+        tour[timer++] = vals[u];
+        for (int v : adj[u]) {
+            if (v != p) dfs(v, u);
+        }
+        tout[u] = timer;
+    }
+
+    void update(int u, long long new_val) {
+        st->update(tin[u], tout[u], new_val);
+    }
+
+    long long query(int u) {
+        return st->query(tin[u], tout[u]);
+    }
+};
+
 void solve() {
     int n, q;
-    cin >> n >> q;
+    cin >> n;
+    vector<vector<int>> adj(n + 1);
+    for (int i = 2; i <= n; i++) {
+        int u; cin >> u;
+        adj[u].push_back(i);
+        adj[i].push_back(u);
+    }
+    vector<long long> vals(n + 1);
+    for (int i = 1; i <= n; i++) cin >> vals[i];
 
-    vector<long long> a(n);
-    for (auto &x : a) cin >> x;
 
-    SegmentTree seg(a);
-
+    EulerTour et(n, vals, adj);
+    cin >> q;
     while (q--) {
-        int type;
-        cin >> type;
-
-        if (type == 1) {
-            int l, r;
-            long long v;
-            cin >> l >> r >> v;
-            seg.update(l, r, v);
-        }
-        else {
-            int l, r;
-            cin >> l >> r;
-            cout << seg.query(l, r) << "\n";
+        string type; cin >> type;
+        if (type == "pow") {
+            int u;;
+            cin >> u;
+            et.update(u, 1);
+        } else {
+            int u; cin >> u;
+            cout << et.query(u) << "\n";
         }
     }
 }
 
 int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
-
-    int t = 1;
-    cin >> t;
-    while (t--) {
-        solve();
-    }
+    ios::sync_with_stdio(0); cin.tie(0);
+    solve();
     return 0;
 }

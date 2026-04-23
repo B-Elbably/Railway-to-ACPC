@@ -14,12 +14,12 @@ private:
     vector<Node> seg;
 
     Node merge(const Node &a, const Node &b) {
-        return Node(a.val + b.val);
+        return Node(a.val | b.val);
     }
 
     void apply(int x, int lx, int rx, long long v) {
-        seg[x].val += (rx - lx) * v;
-        seg[x].lazy += v;
+        seg[x].val = 1LL << v;
+        seg[x].lazy = v;
         seg[x].has_lazy = true;
     }
 
@@ -35,7 +35,7 @@ private:
     void build(const vector<long long> &v, int x, int lx, int rx) {
         if (rx - lx == 1) {
             if (lx < (int)v.size())
-                seg[x] = Node(v[lx]);
+                seg[x] = Node(1LL << v[lx]);
             return;
         }
 
@@ -88,41 +88,69 @@ public:
     }
 };
 
+struct EulerTour {
+    int n, timer;
+    vector<int> tin, tout;
+    vector<long long> tour;
+    const vector<long long>& vals; 
+    const vector<vector<int>>& adj;
+    unique_ptr<SegmentTree> st;
+    
+    EulerTour(int n, const vector<long long>& v, const vector<vector<int>>& g, int root = 1) 
+        : n(n), timer(0), tin(n + 1), tout(n + 1), tour(n), vals(v), adj(g) {
+        
+        dfs(root, 0);
+        st = make_unique<SegmentTree>(tour);
+    }
+
+    void dfs(int u, int p) {
+        tin[u] = timer;
+        tour[timer++] = vals[u];
+        for (int v : adj[u]) {
+            if (v != p) dfs(v, u);
+        }
+        tout[u] = timer;
+    }
+
+    void update(int u, long long new_val) {
+        st->update(tin[u], tout[u], new_val);
+    }
+
+    long long query(int u) {
+        return st->query(tin[u], tout[u]);
+    }
+};
+
 void solve() {
     int n, q;
     cin >> n >> q;
+    vector<long long> vals(n + 1);
+    for (int i = 1; i <= n; i++) cin >> vals[i];
 
-    vector<long long> a(n);
-    for (auto &x : a) cin >> x;
+    vector<vector<int>> adj(n + 1);
+    for (int i = 0; i < n - 1; i++) {
+        int u, v; cin >> u >> v;
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
 
-    SegmentTree seg(a);
+    EulerTour et(n, vals, adj);
 
     while (q--) {
-        int type;
-        cin >> type;
-
+        int type; cin >> type;
         if (type == 1) {
-            int l, r;
-            long long v;
-            cin >> l >> r >> v;
-            seg.update(l, r, v);
-        }
-        else {
-            int l, r;
-            cin >> l >> r;
-            cout << seg.query(l, r) << "\n";
+            int u; long long x;
+            cin >> u >> x;
+            et.update(u, x);
+        } else {
+            int u; cin >> u;
+            cout << __builtin_popcountll(et.query(u)) << "\n";
         }
     }
 }
 
 int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
-
-    int t = 1;
-    cin >> t;
-    while (t--) {
-        solve();
-    }
+    ios::sync_with_stdio(0); cin.tie(0);
+    solve();
     return 0;
 }
