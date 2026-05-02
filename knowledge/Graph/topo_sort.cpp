@@ -12,6 +12,13 @@ vector<int> order;
 void solve() {
     int n, m;
     cin >> n >> m;
+
+    for (int i = 1; i <= n; i++) {
+        adj[i].clear();
+        deg[i] = 0;
+    }
+    order.clear();
+
     for (int i = 0; i < m; i++) {
         int u, v;
         cin >> u >> v;
@@ -19,30 +26,27 @@ void solve() {
         deg[v]++;
     }
 
-    priority_queue<int, vector<int>, greater<int>> pq; 
-    
+    priority_queue<int, vector<int>, greater<int>> pq;
+
     for (int i = 1; i <= n; i++) {
         if (deg[i] == 0) pq.push(i);
     }
 
     while (!pq.empty()) {
-        int u = pq.top();
-        pq.pop();
+        int u = pq.top(); pq.pop();
         order.push_back(u);
 
         for (int v : adj[u]) {
-            deg[v]--;
-            if (deg[v] == 0) pq.push(v);
+            if (--deg[v] == 0)
+                pq.push(v);
         }
     }
 
     if (order.size() < n) {
-        cout << "IMPOSSIBLE" << endl;
+        cout << "IMPOSSIBLE\n";
     } else {
-        for (int i = 0; i < order.size(); i++) {
-            cout << order[i] << " ";
-        }
-        cout << endl;
+        for (int x : order) cout << x << " ";
+        cout << "\n";
     }
 }
 
