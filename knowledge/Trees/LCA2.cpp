@@ -1,4 +1,5 @@
 // LCA with path queries (max on path)
+// Use if you need to answer queries on the path between two nodes, like max/min/sum, etc.
 #include <bits/stdc++.h>
 using namespace std;
 

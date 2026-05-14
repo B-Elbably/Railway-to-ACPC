@@ -6,7 +6,7 @@ using namespace std;
 #define endl '\n'
 
 const int N = 1e6 + 5;
-const int MOD = 1e9 + 7;
+const int MOD = 998244353;
 
 int fac[N], inv[N], der[N];
 
@@ -38,15 +38,6 @@ int nCr(int n, int r) {
     return fac[n] * inv[r] % MOD * inv[n - r] % MOD;
 }
 
-int nCr2(int n, int r) {
-    if (r < 0 || r > n) return 0;
-    int num = 1;
-    for (int i = 0; i < r; i++) {
-        num = num * ((n - i) % MOD) % MOD;
-    }
-    return num * inv[r] % MOD;
-}
-
 int nPr(int n, int r) {
     if (r < 0 || r > n || n >= N) return 0;
     return fac[n] * inv[n - r] % MOD;
@@ -74,8 +65,31 @@ int stirling2(int n, int k) {
     return ans * inv[k] % MOD;
 }
 
-void solve() {
+int nCr2(int n, int r) {
+    if (r < 0 || r > n) return 0;
+    int num = 1;
+    r = min(r, n - r);
+    for (int i = 0; i < r; i++) {
+        num = num * ((n - i) % MOD) % MOD;
+    }
+    return num * inv[r] % MOD;
+}
 
+void solve() {
+    int n, k;
+    cin >> n >> k;
+    vector<int> b(n - k + 1);
+    for (auto &x : b) cin >> x;
+    vector<int> mn(k, 0);
+    for (int r = 0; r < k; r++) {
+        int cur = 0;
+        for (int i = r; i < n - k; i += k) {
+            cur += b[i + 1] - b[i];
+            mn[r] = min(mn[r], cur);
+        }
+    }
+    int sum = b[0] + accumulate(all(mn), 0LL);
+    cout << nCr2(sum + k - 1, k - 1) << endl;
 }
 
 int32_t main() {
