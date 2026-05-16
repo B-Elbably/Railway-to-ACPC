@@ -3,7 +3,7 @@ using namespace std;
 
 /** * BASIC SETUP & UTILS 
  */
-using T = long double;
+using T = double;
 using pt = complex<T>;
 
 #define x real()
@@ -53,13 +53,12 @@ T angleTraveled(pt a, pt b, pt c) { // angle traveled from ab to ac, in (-PI, PI
     return (orient(a, b, c) >= 0) ? ang : -ang;
 }
 
-bool inAngle(pt a, pt b, pt c, pt p) { // is p in angle bac (including boundary)
+bool inAngle(pt a, pt b, pt c, pt p) { // is p in angle abc?
     T abp = orient(a, b, p);
     T acp = orient(a, c, p);
     T abc = orient(a, b, c);
-    if (abs(abc) < EPS) return sgn(dot(b - a, p - a)) >= 0 && sgn(dot(c - a, p - a)) >= 0;
     if (abc < 0) swap(abp, acp);
-    return (abp >= -EPS && acp <= EPS) ^ (abc < -EPS);
+    return (abp >= 0 && acp <= 0) ^ (abc < 0);
 }
 
 /** * LINES 
@@ -97,14 +96,16 @@ struct line {
 
     // bisector of angle between l1 and l2 (interior=true for interior bisector)
     static line bisector(line l1, line l2, bool interior) {
-        T sign = interior ? 1 : -1;
+        T sign = (interior ? 1 : -1);
         pt v1 = l1.v / abs(l1.v);
         pt v2 = l2.v / abs(l2.v);
         pt res_v = v2 + v1 * sign;        
-        if (abs(res_v) < EPS) res_v = perp(l1.v);
+        
+        if (abs(res_v) < EPS) res_v = perp(l1.v); // vectors cancel out
+        
         pt intersection;
+        // Handle parallel lines fallback
         if (!line::inter(l1, l2, intersection)) {
-            if (dot(v1, v2) < 0) l2.c = -l2.c;
             return {l1.v, (l1.c + l2.c) / (T)2.0};
         }
         return {res_v, cross(res_v, intersection)};
@@ -156,14 +157,19 @@ struct pt_cmp {
 vector<pt> segmentInter(pt a, pt b, pt c, pt d) {
     pt out;
     if (properInter(a, b, c, d, out)) return {out};
-    vector<pt> s, res;
+    
+    vector<pt> s;
     if (onSegment(a, b, c)) s.push_back(c);
     if (onSegment(a, b, d)) s.push_back(d);
     if (onSegment(c, d, a)) s.push_back(a);
     if (onSegment(c, d, b)) s.push_back(b);
+    
+    vector<pt> res;
     for (pt p : s) {
         bool dup = false;
-        for (pt r : res) if (abs(p - r) < EPS) dup = true;
+        for (pt r : res) {
+            if (abs(p - r) < EPS) dup = true;
+        }
         if (!dup) res.push_back(p);
     }
     return res;
@@ -334,23 +340,19 @@ struct circle {
     }
 
     static vector<pt> intersect(const vector<circle>& circles) {
-        vector<pt> res;
-        for (size_t i = 0; i < circles.size(); i++) {
-            for (size_t j = i + 1; j < circles.size(); j++) {
-                for (pt p : circles[i].intersect(circles[j])) {
-                    bool ok = true;
-                    for (const auto& c : circles) {
-                        if (abs(p - c.c) > c.r + EPS) { ok = false; break; }
-                    }
-                    if (ok) {
-                        bool dup = false;
-                        for (pt op : res) if (abs(p - op) < EPS) dup = true;
-                        if (!dup) res.push_back(p);
-                    }
+        if (circles.size() < 2) return {};
+        vector<pt> candidates = circles[0].intersect(circles[1]);
+        for (size_t i = 2; i < circles.size(); i++) {
+            vector<pt> new_candidates;
+            for (const pt& p : candidates) {
+                if (abs(abs(p - circles[i].c) - circles[i].r) < EPS) {
+                    new_candidates.push_back(p);
                 }
             }
+            candidates = move(new_candidates);
+            if (candidates.empty()) break;
         }
-        return res;
+        return candidates;
     }
     T intersection_area(circle other) const {
         T d = abs(other.c - c);
@@ -370,46 +372,58 @@ struct circle {
         return (theta / 360.0) * acos(-1.0) * r * r;
     }
     static T intersection_area(const vector<circle>& circles) {
-    if (circles.empty()) return 0;
-    vector<pt> pts = intersect(circles);
-    if (pts.empty()) {
+        if (circles.empty()) return 0;
+        vector<pt> pts;
         for (size_t i = 0; i < circles.size(); i++) {
-            bool inside_all = true;
-            for (size_t j = 0; j < circles.size(); j++) {
-                if (i == j) continue;
-                if (abs(circles[i].c - circles[j].c) + circles[i].r > circles[j].r + EPS) {
-                    inside_all = false; break;
+            for (size_t j = i + 1; j < circles.size(); j++) {
+                for (pt p : circles[i].intersect(circles[j])) {
+                    bool ok = true;
+                    for (const auto& c : circles) {
+                        if (abs(p - c.c) > c.r + EPS) { ok = false; break; }
+                    }
+                    if (ok) {
+                        bool dup = false;
+                        for (pt op : pts) if (abs(p - op) < EPS) dup = true;
+                        if (!dup) pts.push_back(p);
+                    }
                 }
             }
-            if (inside_all) return PI * circles[i].r * circles[i].r;
         }
-        return 0;
-    }
-    pt center = {0, 0};
-    for (pt p : pts) center += p;
-    center /= (T)pts.size();
-    sort(pts.begin(), pts.end(), [&](pt a, pt b) {
-        return arg(a - center) < arg(b - center);
-    });
-    T area = 0;
-    for (size_t i = 0; i < pts.size(); i++) {
-        pt p1 = pts[i], p2 = pts[(i + 1) % pts.size()];
-        area += cross(p1, p2) / 2.0;
-        T min_arc = 1e18;
-        bool found = false;
-        for (const auto& c : circles) {
-            if (abs(abs(p1 - c.c) - c.r) < EPS && abs(abs(p2 - c.c) - c.r) < EPS) {
-                T d_angle = arg(p2 - c.c) - arg(p1 - c.c);
-                while (d_angle <= 0) d_angle += 2 * PI;
-                if (d_angle > PI) d_angle = 2 * PI - d_angle;
-                min_arc = min(min_arc, 0.5 * c.r * c.r * (d_angle - sin(d_angle)));
-                found = true;
+        if (pts.empty()) {
+            for (size_t i = 0; i < circles.size(); i++) {
+                for (size_t j = i + 1; j < circles.size(); j++) {
+                    if (abs(circles[i].c - circles[j].c) > circles[i].r + circles[j].r - EPS) return 0;
+                }
             }
+            T min_r = circles[0].r;
+            for (const auto& c : circles) min_r = min(min_r, c.r);
+            return acos(-1.0) * min_r * min_r;
         }
-        if (found) area += min_arc;
+        pt center = {0, 0};
+        for (pt p : pts) center += p;
+        center /= (T)pts.size();
+        sort(pts.begin(), pts.end(), [&](pt a, pt b) {
+            return arg(a - center) < arg(b - center);
+        });
+        T area = 0;
+        for (size_t i = 0; i < pts.size(); i++) {
+            pt p1 = pts[i], p2 = pts[(i + 1) % pts.size()];
+            area += (conj(p1) * p2).imag() / 2.0;
+            T min_arc = 1e18;
+            bool found = false;
+            for (const auto& c : circles) {
+                if (abs(abs(p1 - c.c) - c.r) < EPS && abs(abs(p2 - c.c) - c.r) < EPS) {
+                    T d_angle = arg(p2 - c.c) - arg(p1 - c.c);
+                    while (d_angle <= 0) d_angle += 2 * acos(-1.0);
+                    if (d_angle > acos(-1.0)) d_angle = 2 * acos(-1.0) - d_angle;
+                    min_arc = min(min_arc, 0.5 * c.r * c.r * (d_angle - sin(d_angle)));
+                    found = true;
+                }
+            }
+            if (found) area += min_arc;
+        }
+        return area;
     }
-    return area;
-}
     // Tangents
 
     // return points of tangency from point p to this circle (0, 1, or 2 points)
@@ -436,7 +450,7 @@ struct circle {
             res.push_back(line(p, p + perp(d)));
             return res;
         }
-
+        
         T a = acos(clamp(dr / dist, (T)-1.0, (T)1.0));
         T b = arg(d);
         T offset = inner ? PI : 0;
@@ -447,104 +461,6 @@ struct circle {
     }
 };
 
-/* Advanced Techniques
-*/
-void convex_hull(vector<pt> &pts, bool collinear_inc = true) {
-    if (pts.size() <= 1)
-        return;
-    sort(pts.begin(), pts.end(), [](const pt& a, const pt& b) {
-        if (fabs(a.x - b.x) > EPS)
-            return a.x < b.x;
-        return a.y < b.y;
-    });
-    vector<pt> hull;
-    auto bad = [&](const pt& a, const pt& b, const pt& c) {
-        double o = orient(a, b, c);
-
-        if (collinear_inc)
-            return o < -EPS;   // remove only clockwise
-        else
-            return o <= EPS;   // remove clockwise + collinear
-    };
-
-    // lower hull
-    for (const pt& p : pts) {
-        while (hull.size() >= 2 &&
-                bad(hull[hull.size() - 2], hull.back(), p)) {
-            hull.pop_back();
-        }
-        hull.push_back(p);
-    }
-
-    // upper hull
-    int t = hull.size() + 1;
-    for (int i = (int)pts.size() - 2; i >= 0; --i) {
-        while ((int)hull.size() >= t &&
-                bad(hull[hull.size() - 2], hull.back(), pts[i])) {
-            hull.pop_back();
-        }
-        hull.push_back(pts[i]);
-    }
-
-    hull.pop_back();
-
-    pts = hull;
-}
-
-bool isCCW(const vector<pt>& p) {
-    for (int i = 0; i < (int)p.size(); i++) {
-        if (orient(p[i], p[(i + 1) % p.size()], p[(i + 2) % p.size()]) > EPS) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void reorder(vector<pt>& p) {
-    int pos = 0;
-    for (int i = 1; i < (int)p.size(); i++) {
-        // Find bottom-most, then left-most point
-        if (p[i].y < p[pos].y - EPS || (abs(p[i].y - p[pos].y) <= EPS && p[i].x < p[pos].x - EPS)) {
-            pos = i;
-        }
-    }
-    rotate(p.begin(), p.begin() + pos, p.end());
-}
-
-vector<pt> minkowskiSum(vector<pt> a, vector<pt> b) {
-    if (a.empty() || b.empty()) return {};
-    
-    // Polygons must be CCW and start at the bottom-leftmost vertex
-    reorder(a);
-    reorder(b);
-    
-    int n = a.size(), m = b.size();
-    int i = 0, j = 0;
-    vector<pt> res;
-    
-    while (i < n || j < m) {
-        res.push_back(a[i % n] + b[j % m]);
-        pt edgeA = a[(i + 1) % n] - a[i % n];
-        pt edgeB = b[(j + 1) % m] - b[j % m];
-        if (i < n && j < m) {
-            T cross_prod = cross(edgeA, edgeB);
-            // Parallel and pointing in the same direction
-            if (abs(cross_prod) <= EPS && dot(edgeA, edgeB) > 0) {
-                i++; j++;
-            } else if (cross_prod > EPS) {
-                i++; // edgeA has a smaller polar angle
-            } else {
-                j++; // edgeB has a smaller polar angle
-            }
-        } else if (i < n) {
-            i++;
-        } else {
-            j++;
-        }
-    }
-    
-    return res;
-}
 
 void takePoint(pt &p) {
     T xx, yy; cin >> xx >> yy;
@@ -552,21 +468,54 @@ void takePoint(pt &p) {
 }
 
 void solve() {
-    // pt X, Y, Z;
-    // takePoint(X); takePoint(Y); takePoint(Z);
+    T r, a, b; 
+    pt p;
+    cin >> r >> a >> b;
+    takePoint(p);
+
+    a = a * PI / 180.0;
+    b = b * PI / 180.0;
+    pt o = {0, 0};
+    pt A = rotate({r, 0}, o, a);
+    pt B = rotate({r, 0}, o, b);
+
+    
+    if (inAngle(o, A, B, p) || (abs(p) < r)) {
+        cout << abs(p) << "\n";
+        return;
+    }
+    T ans = 1e18;
+    if (orient(B, B + perp(B), p) < 0){
+        ans = min(ans, abs(p - B) + r);
+    }
+    if (orient(A, A + perp(A), p) < 0){
+        ans = min(ans, abs(p - A) + r);
+    }
+    vector<pt> tangents = circle(o, r).tangent_points(p);
+    
+    auto go = [&](pt from, pt to) {
+        return angle(from, to) * r;
+    };
+
+    for (pt t : tangents) {
+        T sum =  abs(p - t) + r;
+        sum += min(go(A, t), go(B, t));
+        ans = min(ans, sum);
+    }
+    cout << ans << "\n";
 }
 
 int main() {
     ios::sync_with_stdio(0); cin.tie(0);
     string filename;
-    // filename = "";
+    // filename = "walls";
     if (filename != "") {
         freopen((filename + ".in").c_str(), "r", stdin);
-        freopen((filename + ".out").c_str(), "w", stdout);
+        // freopen((filename + ".out").c_str(), "w", stdout);
     }
     cout << fixed << setprecision(10);
     int t = 1; 
-    // cin >> t;
+    cin >> t;
     while (t--) {
         solve();
     }

@@ -447,104 +447,6 @@ struct circle {
     }
 };
 
-/* Advanced Techniques
-*/
-void convex_hull(vector<pt> &pts, bool collinear_inc = true) {
-    if (pts.size() <= 1)
-        return;
-    sort(pts.begin(), pts.end(), [](const pt& a, const pt& b) {
-        if (fabs(a.x - b.x) > EPS)
-            return a.x < b.x;
-        return a.y < b.y;
-    });
-    vector<pt> hull;
-    auto bad = [&](const pt& a, const pt& b, const pt& c) {
-        double o = orient(a, b, c);
-
-        if (collinear_inc)
-            return o < -EPS;   // remove only clockwise
-        else
-            return o <= EPS;   // remove clockwise + collinear
-    };
-
-    // lower hull
-    for (const pt& p : pts) {
-        while (hull.size() >= 2 &&
-                bad(hull[hull.size() - 2], hull.back(), p)) {
-            hull.pop_back();
-        }
-        hull.push_back(p);
-    }
-
-    // upper hull
-    int t = hull.size() + 1;
-    for (int i = (int)pts.size() - 2; i >= 0; --i) {
-        while ((int)hull.size() >= t &&
-                bad(hull[hull.size() - 2], hull.back(), pts[i])) {
-            hull.pop_back();
-        }
-        hull.push_back(pts[i]);
-    }
-
-    hull.pop_back();
-
-    pts = hull;
-}
-
-bool isCCW(const vector<pt>& p) {
-    for (int i = 0; i < (int)p.size(); i++) {
-        if (orient(p[i], p[(i + 1) % p.size()], p[(i + 2) % p.size()]) > EPS) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void reorder(vector<pt>& p) {
-    int pos = 0;
-    for (int i = 1; i < (int)p.size(); i++) {
-        // Find bottom-most, then left-most point
-        if (p[i].y < p[pos].y - EPS || (abs(p[i].y - p[pos].y) <= EPS && p[i].x < p[pos].x - EPS)) {
-            pos = i;
-        }
-    }
-    rotate(p.begin(), p.begin() + pos, p.end());
-}
-
-vector<pt> minkowskiSum(vector<pt> a, vector<pt> b) {
-    if (a.empty() || b.empty()) return {};
-    
-    // Polygons must be CCW and start at the bottom-leftmost vertex
-    reorder(a);
-    reorder(b);
-    
-    int n = a.size(), m = b.size();
-    int i = 0, j = 0;
-    vector<pt> res;
-    
-    while (i < n || j < m) {
-        res.push_back(a[i % n] + b[j % m]);
-        pt edgeA = a[(i + 1) % n] - a[i % n];
-        pt edgeB = b[(j + 1) % m] - b[j % m];
-        if (i < n && j < m) {
-            T cross_prod = cross(edgeA, edgeB);
-            // Parallel and pointing in the same direction
-            if (abs(cross_prod) <= EPS && dot(edgeA, edgeB) > 0) {
-                i++; j++;
-            } else if (cross_prod > EPS) {
-                i++; // edgeA has a smaller polar angle
-            } else {
-                j++; // edgeB has a smaller polar angle
-            }
-        } else if (i < n) {
-            i++;
-        } else {
-            j++;
-        }
-    }
-    
-    return res;
-}
 
 void takePoint(pt &p) {
     T xx, yy; cin >> xx >> yy;
@@ -552,8 +454,32 @@ void takePoint(pt &p) {
 }
 
 void solve() {
-    // pt X, Y, Z;
-    // takePoint(X); takePoint(Y); takePoint(Z);
+    int n; cin >> n;
+    vector<pt> p(n);
+    for (int i = 0; i < n; i++) takePoint(p[i]);
+
+    sort(p.begin(), p.end(), [](pt a, pt b) {
+        if (abs(a.x - b.x) > EPS) return a.x < b.x;
+        return a.y < b.y;
+    });
+    int j = 0;
+    T ans = 8e18 + 1;
+    set<array<T, 2>> window;
+    for (int i = 0; i < n; ++i) {
+        while (j < n && (p[i].x - p[j].x > sqrt(ans) + EPS)) {
+            window.erase({p[j].y, p[j].x});
+            j++;
+        }
+        auto it = window.lower_bound({p[i].y - sqrt(ans) - EPS, -1e18});
+        auto en = window.upper_bound({p[i].y + sqrt(ans) + EPS, 1e18});
+        if (en != window.end()) en++;
+        for (; it != en; ++it) {
+            pt cur = {it->at(1), it->at(0)};
+            ans = min(ans, sq(p[i] - cur));
+        }
+        window.insert({p[i].y, p[i].x});
+    }
+    cout << (long long)ans << "\n"; 
 }
 
 int main() {

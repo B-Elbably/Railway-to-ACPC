@@ -447,6 +447,7 @@ struct circle {
     }
 };
 
+
 /* Advanced Techniques
 */
 void convex_hull(vector<pt> &pts, bool collinear_inc = true) {
@@ -491,69 +492,20 @@ void convex_hull(vector<pt> &pts, bool collinear_inc = true) {
     pts = hull;
 }
 
-bool isCCW(const vector<pt>& p) {
-    for (int i = 0; i < (int)p.size(); i++) {
-        if (orient(p[i], p[(i + 1) % p.size()], p[(i + 2) % p.size()]) > EPS) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void reorder(vector<pt>& p) {
-    int pos = 0;
-    for (int i = 1; i < (int)p.size(); i++) {
-        // Find bottom-most, then left-most point
-        if (p[i].y < p[pos].y - EPS || (abs(p[i].y - p[pos].y) <= EPS && p[i].x < p[pos].x - EPS)) {
-            pos = i;
-        }
-    }
-    rotate(p.begin(), p.begin() + pos, p.end());
-}
-
-vector<pt> minkowskiSum(vector<pt> a, vector<pt> b) {
-    if (a.empty() || b.empty()) return {};
-    
-    // Polygons must be CCW and start at the bottom-leftmost vertex
-    reorder(a);
-    reorder(b);
-    
-    int n = a.size(), m = b.size();
-    int i = 0, j = 0;
-    vector<pt> res;
-    
-    while (i < n || j < m) {
-        res.push_back(a[i % n] + b[j % m]);
-        pt edgeA = a[(i + 1) % n] - a[i % n];
-        pt edgeB = b[(j + 1) % m] - b[j % m];
-        if (i < n && j < m) {
-            T cross_prod = cross(edgeA, edgeB);
-            // Parallel and pointing in the same direction
-            if (abs(cross_prod) <= EPS && dot(edgeA, edgeB) > 0) {
-                i++; j++;
-            } else if (cross_prod > EPS) {
-                i++; // edgeA has a smaller polar angle
-            } else {
-                j++; // edgeB has a smaller polar angle
-            }
-        } else if (i < n) {
-            i++;
-        } else {
-            j++;
-        }
-    }
-    
-    return res;
-}
-
 void takePoint(pt &p) {
     T xx, yy; cin >> xx >> yy;
     p = pt(xx, yy);
 }
 
 void solve() {
-    // pt X, Y, Z;
-    // takePoint(X); takePoint(Y); takePoint(Z);
+    int n; cin >> n;
+    vector<pt> pts(n);
+    for (int i = 0; i < n; i++) takePoint(pts[i]);
+    convex_hull(pts);
+    cout << pts.size() << "\n";
+    for (pt p : pts) {
+        cout << (int)p.x << " " << (int)p.y << "\n";
+    }
 }
 
 int main() {
