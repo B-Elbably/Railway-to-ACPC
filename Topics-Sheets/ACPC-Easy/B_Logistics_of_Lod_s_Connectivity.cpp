@@ -5,8 +5,6 @@ using namespace std;
  */
 using T = long double;
 using pt = complex<T>;
-using LL = long long;
-using pti = complex<LL>;
 
 #define x real()
 #define y imag()
@@ -20,14 +18,8 @@ T dot(pt v, pt w) { return v.x * w.x + v.y * w.y; } // dot product
 T cross(pt v, pt w) { return v.x * w.y - v.y * w.x; } // cross product (2D "determinant")
 T orient(pt a, pt b, pt c) { return cross(b - a, c - a); } // >0 CCW, <0 CW, =0 collinear 
 
-// Integer overloads to guarantee zero precision loss
-LL dot(pti v, pti w) { return v.x * w.x + v.y * w.y; }
-LL cross(pti v, pti w) { return v.x * w.y - v.y * w.x; }
-LL orient(pti a, pti b, pti c) { return cross(b - a, c - a); }
-
 // Perpendicular vector (90 deg CCW)
 pt perp(pt p) { return {-p.y, p.x}; }
-pti perp(pti p) { return {-p.y, p.x}; }
 bool isPerp(pt v, pt w) { return abs(dot(v, w)) < EPS; }
 bool isParallel(pt v, pt w) { return abs(cross(v, w)) < EPS; }
 
@@ -136,15 +128,9 @@ struct line {
 bool inDisk(pt a, pt b, pt p) { // true if p is in disk with diameter ab
     return dot(a - p, b - p) <= EPS;
 }
-bool inDisk(pti a, pti b, pti p) {
-    return dot(a - p, b - p) <= 0;
-}
 
 bool onSegment(pt a, pt b, pt p) { // true if p is on segment ab (inclusive)
     return sgn(orient(a, b, p)) == 0 && inDisk(a, b, p);
-}
-bool onSegment(pti a, pti b, pti p) {
-    return orient(a, b, p) == 0 && inDisk(a, b, p);
 }
 
 // True: segments ab and cd properly intersect (share a single interior point)
@@ -277,22 +263,12 @@ struct ray {
 
 /** * POLYGONS 
  */
-// Exact integer version (Returns 2A) to prevent floating-point drift on massive coordinates
-LL areaPolygonExact(const vector<pti>& p) {
-    LL area = 0;
-    for (int i = 0, n = p.size(); i < n; i++) {
-        area += cross(p[i], p[(i + 1) % n]);
-    }
-    return abs(area);
-}
-
-// Decimal version for fractional coordinates (Returns true area A)
-T areaPolygonDecimal(const vector<pt>& p) {
+T areaPolygon(const vector<pt>& p) {
     T area = 0;
     for (int i = 0, n = p.size(); i < n; i++) {
         area += cross(p[i], p[(i + 1) % n]);
     }
-    return fabsl(area) / 2.0;
+    return abs(area) / 2.0; // >0: CCW, <0: CW
 }
 
 bool inPolygon(const vector<pt>& p, pt a, bool strict = true) {
@@ -300,21 +276,10 @@ bool inPolygon(const vector<pt>& p, pt a, bool strict = true) {
     for (int i = 0, n = p.size(); i < n; i++) {
         pt q = p[i], r = p[(i + 1) % n];
         if (onSegment(q, r, a)) return !strict;
+        // Ray casting algorithm
         bool up = (q.y <= a.y && a.y < r.y);
         bool down = (r.y <= a.y && a.y < q.y);
-        if ((up || down) && ((orient(q, r, a) > 0) == (q.y < r.y))) {
-            cnt++;
-        }
-    }
-    return cnt & 1;
-}
-bool inPolygon(const vector<pti>& p, pti a, bool strict = true) {
-    int cnt = 0;
-    for (int i = 0, n = p.size(); i < n; i++) {
-        pti q = p[i], r = p[(i + 1) % n];
-        if (onSegment(q, r, a)) return !strict;
-        bool up = (q.y <= a.y && a.y < r.y);
-        bool down = (r.y <= a.y && a.y < q.y);
+        // Added parentheses around `orient > 0` to fix evaluation order warning
         if ((up || down) && ((orient(q, r, a) > 0) == (q.y < r.y))) {
             cnt++;
         }
@@ -387,7 +352,6 @@ struct circle {
         }
         return res;
     }
-    
     T intersection_area(circle other) const {
         T d = abs(other.c - c);
         if (d >= r + other.r - EPS) return 0;
@@ -405,8 +369,51 @@ struct circle {
     T sector_area_deg(T theta) const {
         return (theta / 360.0) * acos(-1.0) * r * r;
     }
-
+    static T intersection_area(const vector<circle>& circles) {
+    if (circles.empty()) return 0;
+    vector<pt> pts = intersect(circles);
+    if (pts.empty()) {
+        for (size_t i = 0; i < circles.size(); i++) {
+            bool inside_all = true;
+            for (size_t j = 0; j < circles.size(); j++) {
+                if (i == j) continue;
+                if (abs(circles[i].c - circles[j].c) + circles[i].r > circles[j].r + EPS) {
+                    inside_all = false; break;
+                }
+            }
+            if (inside_all) return PI * circles[i].r * circles[i].r;
+        }
+        return 0;
+    }
+    pt center = {0, 0};
+    for (pt p : pts) center += p;
+    center /= (T)pts.size();
+    sort(pts.begin(), pts.end(), [&](pt a, pt b) {
+        return arg(a - center) < arg(b - center);
+    });
+    T area = 0;
+    for (size_t i = 0; i < pts.size(); i++) {
+        pt p1 = pts[i], p2 = pts[(i + 1) % pts.size()];
+        area += cross(p1, p2) / 2.0;
+        T min_arc = 1e18;
+        bool found = false;
+        for (const auto& c : circles) {
+            if (abs(abs(p1 - c.c) - c.r) < EPS && abs(abs(p2 - c.c) - c.r) < EPS) {
+                T d_angle = arg(p2 - c.c) - arg(p1 - c.c);
+                while (d_angle <= 0) d_angle += 2 * PI;
+                if (d_angle > PI) d_angle = 2 * PI - d_angle;
+                min_arc = min(min_arc, 0.5 * c.r * c.r * (d_angle - sin(d_angle)));
+                found = true;
+            }
+        }
+        if (found) area += min_arc;
+    }
+    return area;
+}
     // Tangents
+
+    // return points of tangency from point p to this circle (0, 1, or 2 points)
+    // 0: no tangents, 1: p is on the circle, 2: two tangents
     vector<pt> tangent_points(pt p) const {
         T d = abs(p - c);
         if (d < r - EPS) return {};
@@ -415,6 +422,8 @@ struct circle {
         return {c + polar(r, b + a), c + polar(r, b - a)};
     }
 
+    // return lines of tangency between this circle and another (0, 1, or 2 lines)
+    // inner=true for internal tangents, false for external tangents
     vector<line> tangents(circle other, bool inner) const {
         vector<line> res;
         pt d = other.c - c;
@@ -438,19 +447,119 @@ struct circle {
     }
 };
 
+/* Advanced Techniques
+*/
+void convex_hull(vector<pt> &pts, bool collinear_inc = true) {
+    if (pts.size() <= 1)
+        return;
+    sort(pts.begin(), pts.end(), [](const pt& a, const pt& b) {
+        if (fabs(a.x - b.x) > EPS)
+            return a.x < b.x;
+        return a.y < b.y;
+    });
+    vector<pt> hull;
+    auto bad = [&](const pt& a, const pt& b, const pt& c) {
+        double o = orient(a, b, c);
+
+        if (collinear_inc)
+            return o < -EPS;   // remove only clockwise
+        else
+            return o <= EPS;   // remove clockwise + collinear
+    };
+
+    // lower hull
+    for (const pt& p : pts) {
+        while (hull.size() >= 2 &&
+                bad(hull[hull.size() - 2], hull.back(), p)) {
+            hull.pop_back();
+        }
+        hull.push_back(p);
+    }
+
+    // upper hull
+    int t = hull.size() + 1;
+    for (int i = (int)pts.size() - 2; i >= 0; --i) {
+        while ((int)hull.size() >= t &&
+                bad(hull[hull.size() - 2], hull.back(), pts[i])) {
+            hull.pop_back();
+        }
+        hull.push_back(pts[i]);
+    }
+
+    hull.pop_back();
+
+    pts = hull;
+}
+
+bool isCCW(const vector<pt>& p) {
+    for (int i = 0; i < (int)p.size(); i++) {
+        if (orient(p[i], p[(i + 1) % p.size()], p[(i + 2) % p.size()]) > EPS) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void reorder(vector<pt>& p) {
+    int pos = 0;
+    for (int i = 1; i < (int)p.size(); i++) {
+        // Find bottom-most, then left-most point
+        if (p[i].y < p[pos].y - EPS || (abs(p[i].y - p[pos].y) <= EPS && p[i].x < p[pos].x - EPS)) {
+            pos = i;
+        }
+    }
+    rotate(p.begin(), p.begin() + pos, p.end());
+}
+
+vector<pt> minkowskiSum(vector<pt> a, vector<pt> b) {
+    if (a.empty() || b.empty()) return {};
+    
+    // Polygons must be CCW and start at the bottom-leftmost vertex
+    reorder(a);
+    reorder(b);
+    
+    int n = a.size(), m = b.size();
+    int i = 0, j = 0;
+    vector<pt> res;
+    
+    while (i < n || j < m) {
+        res.push_back(a[i % n] + b[j % m]);
+        pt edgeA = a[(i + 1) % n] - a[i % n];
+        pt edgeB = b[(j + 1) % m] - b[j % m];
+        if (i < n && j < m) {
+            T cross_prod = cross(edgeA, edgeB);
+            // Parallel and pointing in the same direction
+            if (abs(cross_prod) <= EPS && dot(edgeA, edgeB) > 0) {
+                i++; j++;
+            } else if (cross_prod > EPS) {
+                i++; // edgeA has a smaller polar angle
+            } else {
+                j++; // edgeB has a smaller polar angle
+            }
+        } else if (i < n) {
+            i++;
+        } else {
+            j++;
+        }
+    }
+    
+    return res;
+}
+
 void takePoint(pt &p) {
     T xx, yy; cin >> xx >> yy;
     p = pt(xx, yy);
 }
 
-void takePoint(pti &p) {
-    LL xx, yy; cin >> xx >> yy;
-    p = pti(xx, yy);
-}
-
 void solve() {
-    // pt X, Y, Z;
-    // takePoint(X); takePoint(Y); takePoint(Z);
+    int n; cin >> n;
+    pt p = {0, 0};
+    for (int i = 0; i < n; i++) {
+        T deg, dist; cin >> deg >> dist;
+        deg = deg * PI / 180.0; 
+        p += polar(dist, deg);
+    }
+    cout << abs(p) << endl;
 }
 
 int main() {

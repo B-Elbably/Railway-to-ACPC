@@ -308,6 +308,7 @@ bool inPolygon(const vector<pt>& p, pt a, bool strict = true) {
     }
     return cnt & 1;
 }
+
 bool inPolygon(const vector<pti>& p, pti a, bool strict = true) {
     int cnt = 0;
     for (int i = 0, n = p.size(); i < n; i++) {
@@ -449,9 +450,11 @@ void takePoint(pti &p) {
 }
 
 void solve() {
-    // pt X, Y, Z;
-    // takePoint(X); takePoint(Y); takePoint(Z);
-}
+    int n; cin >> n;
+    vector<pti> polygon(n);
+    for (int i = 0; i < n; i++) takePoint(polygon[i]);
+    cout << areaPolygonExact(polygon) << "\n";
+} 
 
 int main() {
     ios::sync_with_stdio(0); cin.tie(0);
@@ -461,7 +464,7 @@ int main() {
         freopen((filename + ".in").c_str(), "r", stdin);
         freopen((filename + ".out").c_str(), "w", stdout);
     }
-    cout << fixed << setprecision(10);
+    // cout << fixed << setprecision(10);
     int t = 1; 
     // cin >> t;
     while (t--) {

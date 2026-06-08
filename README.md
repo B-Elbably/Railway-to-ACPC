@@ -1,23 +1,37 @@
 # Railway-to-ACPC
 
-My personal workspace for Competitive Programming to prepare for the **ACPC** (Africa and Arab Collegiate Programming Championship).
+Personal competitive-programming workspace: fast access to contest-ready templates, solved problems, and a small set of maintenance scripts.
 
-This repo holds my problem solutions, algorithms, notes, and a script to organize everything.
+Key facts
+- Primary language: C++
+- Total files: 934 (879 .cpp, 42 .py)
 
-## 📂 Folders
+Online judges (solutions present in this repo)
+- Codeforces
+- AtCoder
+- CSES
+- SPOJ
+- USACO
+- Other (misc. platforms)
+- LeetCode (included in index for practice)
 
-- **`solved/`**: My correct solutions, sorted by website (Codeforces, CSES, USACO) and topic.
-- **`knowledge/`**: My library for algorithms and templates (Graphs, DP, Math, etc.).
-- **`GYMs/`**: Codeforces GYM contests and virtual rounds.
-- **`boards/`**: Whiteboards and drawings to plan solutions.
-- **`have_to_study/`**: Topics and problems I need to learn or practice more.
-- **`skipped/`**: Problems I skipped and will try later.
-- **`star/`**: Very good or important problems to review again.
-- **`ignored/`**: Problems I am not going to solve.
-- **`testing/`**: A place to test small code snippets or debug.
+Essential folders
+- `solved/` — solutions organized by judge and topic
+- `knowledge/` — reusable algorithms and templates
+- `GYMs/` — contest archives and gym problems
 
-## 🛠️ Auto-Organizer
+Quick commands
+- Build active C++ file (VS Code task): use the `C/C++: gcc build active file` task
+- Run organizer script:
 
-I use a script to keep my files clean:
-- **`cph.py`**: Python script that gets data from online APIs to sort my files by topic or round.
-- **`organize.sh`**: Run `./organize.sh` to automatically move new solved problems into the right folders.
+```bash
+python3 cph.py
+./organize.sh
+```
+
+Notes
+- This repository is maintained as a personal training archive. Add a `LICENSE` or `CONTRIBUTING.md` if you plan public collaboration.
+
+---
+
+Want me to add a `CONTRIBUTING.md` and an MIT `LICENSE`, or generate a small CI workflow to run basic builds? Reply with your choice.
