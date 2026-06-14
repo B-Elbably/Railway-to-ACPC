@@ -21,9 +21,15 @@ void solve() {
         }
     }
     int ans = 0;
-    for (int i = n - 1; i > 0; --i) {
-        
+    for (int i: aaa) {
+        set<int> s;
+        for (int j = 0; j < n; ++j) {
+            if (a[j].count(i)) continue;
+            for (int k: a[j]) s.insert(k);
+        }
+        ans = max(ans, (int)s.size());
     }
+    cout << ans << endl;
 }
 
 int32_t main() {
@@ -31,7 +37,7 @@ int32_t main() {
     cin.tie(nullptr);
 
     int t = 1;
-    // cin >> t; 
+    cin >> t; 
     while (t--) solve();
     return 0;
 }

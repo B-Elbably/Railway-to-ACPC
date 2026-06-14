@@ -5,17 +5,15 @@ using namespace std;
 #define all(x) (x).begin(), (x).end()
 #define endl '\n'
 
-// -1 -> odd no. of prime factors
-//  0 -> ! square free
-//  1 -> even no. of prime factors 
-
 /*
+    -1 -> odd no. of prime factors
+    0 -> ! square free
+    1 -> even no. of prime factors 
     NOTE: Important for :
         -> Inclusion-exclusion principle
-
 */
 
-// int mobius(int n) {
+// int mob(int n) {
 //     int res = 1;
 //     for (int i = 2; i * i <= n; i++) {
 //         if (n % i == 0) {
@@ -29,13 +27,13 @@ using namespace std;
 // }
 
 const int MAX = 1e6;
-vector<int> mobius(MAX + 1);
+vector<int> mob(MAX + 1);
 vector<bool> prime(MAX + 1);
-vector<int> pref_mobius(MAX + 1);
+vector<int> pref_mob(MAX + 1);
 
-void build_mobius() {
+void build_mob() {
     for (int i = 0; i <= MAX; i++) {
-        mobius[i] = 1;
+        mob[i] = 1;
         prime[i] = true;
     }
     prime[0] = prime[1] = false;
@@ -44,20 +42,19 @@ void build_mobius() {
             int step = i;
             for (int j = i; j <= MAX; j += step) {
                 prime[j] = false;
-                mobius[j] *= -1;
+                mob[j] *= -1;
             }
             step *= i;
             for (int j = i * i; j <= MAX; j += step) {
-                mobius[j] = 0;
+                mob[j] = 0;
             }
         }
     }
-    pref_mobius[0] = 0;
+    pref_mob[0] = 0;
     for (int i = 1; i <= MAX; i++) {
-        pref_mobius[i] = pref_mobius[i - 1] + mobius[i];
+        pref_mob[i] = pref_mob[i - 1] + mob[i];
     }
 }
-
 
 
 int binpow(int a, int b) {
@@ -76,7 +73,7 @@ int count_pairs(int n, int k) { // O(sqrt(n))
     for (int l = 1, r; l <= n; l = r + 1) {
         r = n / (n / l);
         int val = n / l;
-        ans += (pref_mobius[r] - pref_mobius[l - 1]) * binpow(val, k);
+        ans += (pref_mob[r] - pref_mob[l - 1]) * binpow(val, k);
     }
     return ans;
 }
@@ -85,7 +82,7 @@ int count_pairs(int n, int k) { // O(sqrt(n))
 int count_pairs(int n, int k) {
     int ans = 0;
     for (int d = 1; d <= n; d++) {
-        ans +=  mobius[d] * binpow(n / d, k);
+        ans +=  mob[d] * binpow(n / d, k);
     }
     return ans; 
 }
