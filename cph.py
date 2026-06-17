@@ -316,6 +316,38 @@ class CPHFile:
             return 'leetcode'
         if 'hackerrank.com' in url:
             return 'hackerrank'
+        if 'yosupo.jp' in url:
+            return 'yosupo'
+        if 'kilonova.ro' in url:
+            return 'kilonova'
+        if 'lightoj.com' in url:
+            return 'lightoj'
+        if 'vjudge.net' in url:
+            return 'vjudge'
+        if 'codechef.com' in url:
+            return 'codechef'
+        if 'kattis.com' in url:
+            return 'kattis'
+        if 'hackerearth.com' in url:
+            return 'hackerearth'
+        if 'eolymp.com' in url or 'e-olymp.com' in url:
+            return 'eolymp'
+        if 'dmoj.ca' in url:
+            return 'dmoj'
+        if 'projecteuler.net' in url:
+            return 'projecteuler'
+        if 'topcoder.com' in url:
+            return 'topcoder'
+        if 'yandex.ru' in url or 'yandex.com' in url:
+            return 'yandex'
+        if 'timus.ru' in url:
+            return 'timus'
+        if 'infoarena.ro' in url:
+            return 'infoarena'
+        if 'acwing.com' in url:
+            return 'acwing'
+        if 'luogu.com.cn' in url or 'luogu.org' in url:
+            return 'luogu'
         return 'other'
     
     def extract_cf_contest_id(self) -> Optional[int]:
@@ -492,6 +524,23 @@ def move_file_with_metadata(src_file: Path, dest_file: Path):
     invalidate_cph_index()
 
 
+def get_unique_dest_path(dest_file: Path) -> Path:
+    """If dest_file already exists, append a suffix to make it unique."""
+    if not dest_file.exists():
+        return dest_file
+    
+    stem = dest_file.stem
+    suffix = dest_file.suffix
+    parent = dest_file.parent
+    
+    counter = 1
+    while True:
+        new_path = parent / f"{stem}_{counter}{suffix}"
+        if not new_path.exists():
+            return new_path
+        counter += 1
+
+
 def get_cph_for_file(src_file: Path) -> Optional[CPHFile]:
     """Find the .cph metadata for a source file."""
     prob_file = find_prob_file_for_src(src_file)
@@ -624,6 +673,14 @@ def move_files(dry_run: bool = False):
     moved = 0
     
     for src_file in src_files:
+        # Check if file is empty
+        try:
+            if src_file.stat().st_size == 0:
+                print(f"{C.Y}[SKIP]{C.NC} {src_file.name} (empty file)")
+                continue
+        except Exception:
+            pass
+
         cph = get_cph_for_file(src_file)
         if not cph:
             continue
@@ -635,11 +692,15 @@ def move_files(dry_run: bool = False):
         dest_dir = SOLVED_DIR / platform
         dest_file = dest_dir / src_file.name
         
+        is_renamed = False
         if dest_file.exists():
-            print(f"{C.Y}[SKIP]{C.NC} {src_file.name} (exists)")
-            continue
+            dest_file = get_unique_dest_path(dest_file)
+            is_renamed = True
         
-        print(f"{C.G}[MOVE]{C.NC} {src_file.name} → {platform}/")
+        if is_renamed:
+            print(f"{C.G}[MOVE]{C.NC} {src_file.name} → {platform}/{dest_file.name} (renamed duplicate)")
+        else:
+            print(f"{C.G}[MOVE]{C.NC} {src_file.name} → {platform}/")
         
         if not dry_run:
             move_file_with_metadata(src_file, dest_file)
@@ -697,14 +758,19 @@ def sort_cf_files(dry_run: bool = False):
             dest_dir = cf_dir / category
             dest_file = dest_dir / src_file.name
             
-            name_short = src_file.stem[:25]
+            is_renamed = False
+            if dest_file.exists():
+                dest_file = get_unique_dest_path(dest_file)
+                is_renamed = True
+            
+            name_short = dest_file.stem[:25]
             key_str = f"#{sort_key}" if sort_key else ""
-            print(f"[{category:12}] {key_str:6} {name_short}")
+            rename_indicator = " (renamed)" if is_renamed else ""
+            print(f"[{category:12}] {key_str:6} {name_short}{rename_indicator}")
             
             if not dry_run:
-                if not dest_file.exists():
-                    move_file_with_metadata(src_file, dest_file)
-                    moved += 1
+                move_file_with_metadata(src_file, dest_file)
+                moved += 1
     
     print("\n" + "=" * 50)
     summary = ", ".join(f"{k}:{v}" for k, v in sorted(stats.items(), key=lambda x: -x[1]))
@@ -741,12 +807,17 @@ def sort_cses_files(dry_run: bool = False):
         dest_dir = cses_dir / topic
         dest_file = dest_dir / src_file.name
         
-        print(f"[{topic:8}] {src_file.stem[:30]}")
+        is_renamed = False
+        if dest_file.exists():
+            dest_file = get_unique_dest_path(dest_file)
+            is_renamed = True
+        
+        rename_indicator = " (renamed)" if is_renamed else ""
+        print(f"[{topic:8}] {dest_file.stem[:30]}{rename_indicator}")
         
         if not dry_run:
-            if not dest_file.exists():
-                move_file_with_metadata(src_file, dest_file)
-                moved += 1
+            move_file_with_metadata(src_file, dest_file)
+            moved += 1
     
     summary = ", ".join(f"{k}:{v}" for k, v in sorted(stats.items(), key=lambda x: -x[1]))
     print(f"\n{summary}")
@@ -778,12 +849,17 @@ def sort_usaco_files(dry_run: bool = False):
         dest_dir = usaco_dir / division
         dest_file = dest_dir / src_file.name
         
-        print(f"[{division:10}] {src_file.stem[:30]}")
+        is_renamed = False
+        if dest_file.exists():
+            dest_file = get_unique_dest_path(dest_file)
+            is_renamed = True
+        
+        rename_indicator = " (renamed)" if is_renamed else ""
+        print(f"[{division:10}] {dest_file.stem[:30]}{rename_indicator}")
         
         if not dry_run:
-            if not dest_file.exists():
-                move_file_with_metadata(src_file, dest_file)
-                moved += 1
+            move_file_with_metadata(src_file, dest_file)
+            moved += 1
     
     summary = ", ".join(f"{k}:{v}" for k, v in sorted(stats.items(), key=lambda x: -x[1]))
     print(f"\n{summary}")
