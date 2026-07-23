@@ -60,7 +60,7 @@ private:
     }
 
     Node query(int x, int lx, int rx, int l, int r) {
-        if (lx >= r || rx <= l) return Node(0);
+        if (lx >= r || rx <= l) return Node();
         if (lx >= l && rx <= r) return seg[x];
 
         push(x, lx, rx);

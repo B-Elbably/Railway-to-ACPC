@@ -2,41 +2,64 @@ template <typename T>
 struct BIT {
     int n;
     vector<T> tree;
-
-    BIT(int n) : n(n), tree(n + 1, 0) {}
-
+    BIT() {}
+    BIT(int sz) {
+        init(sz);
+    }
+    void init(int sz) {
+        n = sz;
+        tree.assign(n + 1, T());
+    }
+    // O(n)
+    void build(const vector<T> &a) {
+        init(a.size());
+        for (int i = 1; i <= n; i++) {
+            tree[i] += a[i - 1];
+            int j = i + (i & -i);
+            if (j <= n)
+                tree[j] += tree[i];
+        }
+    }
+    // a[idx] += val
     void add(int idx, T val) {
-        for (++idx; idx <= n; idx += idx & -idx) {
+        for (++idx; idx <= n; idx += idx & -idx)
             tree[idx] += val;
-        }
+    }
+    // sum of [0..idx]
+    T query(int idx) const {
+        T res = T();
+        for (++idx; idx > 0; idx -= idx & -idx)
+            res += tree[idx];
+        return res;
+    }
+    // sum of [l..r]
+    T query(int l, int r) const {
+        if (l > r) return T();
+        return query(r) - (l ? query(l - 1) : T());
+    }
+    // value at idx
+    T at(int idx) const {
+        return query(idx, idx);
+    }
+    void set(int idx, T val) {
+        add(idx, val - at(idx));
+    }
+    void clear() {
+        fill(tree.begin(), tree.end(), T());
     }
 
-    // 0 -> idx
-    T query(int idx) {
-        T sum = 0;
-        for (++idx; idx > 0; idx -= idx & -idx) {
-            sum += tree[idx];
-        }
-        return sum;
-    }
-
-    //l -> r
-    T query(int l, int r) {
-        if (l > r) return 0;
-        return query(r) - query(l - 1);
-    }
-
-    // prefix_sum(i) >= val (lowest i)
-    // must: non-negative values in BIT
-    int lower_bound(T val) {
-        T sum = 0;
+    int lower_bound(T val) const {
+        if (val <= 0) return 0;
+        T sum = T();
         int pos = 0;
-        for (int i = 1 << __lg(n); i > 0; i >>= 1) {
-            if (pos + i <= n && sum + tree[pos + i] < val) {
-                sum += tree[pos + i];
-                pos += i;
+        int pw = 1;
+        while ((pw << 1) <= n) pw <<= 1;
+        for (; pw; pw >>= 1) {
+            if (pos + pw <= n && sum + tree[pos + pw] < val) {
+                sum += tree[pos + pw];
+                pos += pw;
             }
         }
-        return pos;
+        return (pos == n ? n : pos);
     }
 };

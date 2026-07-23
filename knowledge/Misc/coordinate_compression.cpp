@@ -6,13 +6,13 @@ using namespace std;
 #define endl '\n'
 
 void solve() {
-    vector<int> a = {100, 5, 100, 2, 5};
-    vector<int> b = a;
-    sort(b.begin(), b.end());
-    b.erase(unique(b.begin(), b.end()), b.end());
-    for (int &x : a) {
-        x = lower_bound(b.begin(), b.end(), x) - b.begin();
-    }
+    vector<int> arr = {100, 5, 100, 2, 5};
+    sort(arr.begin(), arr.end());
+    arr.erase(unique(arr.begin(), arr.end()), arr.end());
+
+    auto get = [&](int x) {
+        return lower_bound(arr.begin(), arr.end(), x) - arr.begin();
+    };
 }
 
 int32_t main() {

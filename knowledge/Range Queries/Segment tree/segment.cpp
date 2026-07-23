@@ -44,7 +44,7 @@ private:
     }
 
     Node query(int x, int lx, int rx, int l, int r) {
-        if (lx >= r || rx <= l) return Node(0); // identity
+        if (lx >= r || rx <= l) return Node(); // identity
         if (lx >= l && rx <= r) return seg[x];
 
         int mid = (lx + rx) >> 1;
