@@ -8,7 +8,6 @@ using namespace std;
 struct PrimeCount {
     int n, r;
     vector<int> S_large, S_small;
-
     PrimeCount(int n) : n(n) {
         if (n < 2) {
             r = 0;

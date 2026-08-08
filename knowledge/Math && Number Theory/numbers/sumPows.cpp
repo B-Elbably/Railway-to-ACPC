@@ -23,5 +23,4 @@ ll sumPows(ll a, ll k) { // a^1 + a^2 + ... + a^k
         return (sumPows(a, k - 1) + modPow(a, k)) % MOD;
     ll half = sumPows(a, k / 2);
     return (half + (modPow(a, k / 2) * half) % MOD) % MOD;
-
 }
