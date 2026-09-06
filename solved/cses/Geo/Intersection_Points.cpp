@@ -1,4 +1,10 @@
-// 1D
+#include <bits/stdc++.h>
+using namespace std;
+
+#define int long long
+#define all(x) (x).begin(), (x).end()
+#define endl '\n'
+
 template <typename T>
 struct BIT {
     int n;
@@ -65,58 +71,53 @@ struct BIT {
     }
 };
 
-
-// 2D
-template <typename T>
-struct BIT2D {
-    int n, m;
-    vector<vector<T>> tree;
-    
-    BIT2D() {}
-    BIT2D(int r, int c) {
-        init(r, c);
-    }
-    
-    void init(int r, int c) {
-        n = r;
-        m = c;
-        tree.assign(n + 1, vector<T>(m + 1, T()));
-    }
-    
-    void add(int r, int c, T val) {
-        for (int i = r + 1; i <= n; i += i & -i) {
-            for (int j = c + 1; j <= m; j += j & -j) {
-                tree[i][j] += val;
-            }
-        }
-    }
-    
-    T query(int r, int c) const {
-        T res = T();
-        for (int i = r + 1; i > 0; i -= i & -i) {
-            for (int j = c + 1; j > 0; j -= j & -j) {
-                res += tree[i][j];
-            }
-        }
-        return res;
-    }
-    
-    T query(int r1, int c1, int r2, int c2) const {
-        if (r1 > r2 || c1 > c2) return T();
-        return query(r2, c2) - query(r1 - 1, c2) - query(r2, c1 - 1) + query(r1 - 1, c1 - 1);
+struct line {
+    int x, y1, y2, type;
+    bool operator<(const line &other) const {
+        if (x != other.x) return x < other.x;
+        return type < other.type;
     }
 };
+const int N = 2e6 + 5;
+const int shift = 1e6 + 1;
 
+void solve() {
+    int n;
+    cin >> n;
+    BIT<int> bit(N);
+    int x1, y1, x2, y2;
+    vector<line> lines;
+    for (int i = 0; i < n; i++) {
+        cin >> x1 >> y1 >> x2 >> y2;
+        y1 += shift;
+        y2 += shift;
+        if (x1 == x2) {
+            lines.push_back({x1, min(y1, y2), max(y1, y2), 2});
+        } else {
+            lines.push_back({min(x1, x2), y1, y2, 1});
+            lines.push_back({max(x1, x2), y1, y2, 3});
+        }
+    }
+    sort(all(lines));
+    int ans = 0;
+    for (const auto &l : lines) {
+        if (l.type == 1) {
+            bit.add(l.y1, 1);
+        } else if (l.type == 2) {
+            ans += bit.query(l.y1, l.y2);
+        } else {
+            bit.add(l.y1, -1);
+        }
+    }
+    cout << ans << endl;
+}
 
-// void solve() {
-//     int n, m;
-//     cin >> n >> m;
-//     BIT2D<int> bit(n, m);
-//     BIT<int> bit1d(n);
-// }
-// int main() {
-//     ios_base::sync_with_stdio(false);
-//     cin.tie(nullptr);
-//     solve();
-//     return 0;
-// }
+int32_t main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int t = 1;
+    // cin >> t; 
+    while (t--) solve();
+    return 0;
+}

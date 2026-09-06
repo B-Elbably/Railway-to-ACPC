@@ -12,6 +12,13 @@ using pt = complex<T>;
 const T EPS = 1e-9;
 const T PI = acos((T)-1.0);
 
+#if __cplusplus < 201703L
+template <typename T>
+T clamp(const T& val, const T& low, const T& high) {
+    return (val < low) ? low : ((val > high) ? high : val);
+}
+#endif
+
 // usecase: Check sign of floating point value with EPS tolerance.
 // returns: 1 if positive, -1 if negative, 0 if zero (within EPS).
 int sgn(T val) { return (val > EPS) - (val < -EPS); }
@@ -308,31 +315,25 @@ struct Triangle {
 
     // usecase: Calculate the area of a triangle's circumcircle using the lengths of its three sides
     // returns: The area of the circumcircle
-    static T circumcircleAreaSides(T a, T b, T c) {
-        T den = (a + b + c) * (a + b - c) * (b + c - a) * (c + a - b);
-        return M_PI * (a * a * b * b * c * c) / den;
-    }
+   static T circumcircleAreaSides(T a, T b, T c) {
+    T den = (a + b + c) * (a + b - c) * (b + c - a) * (c + a - b);
+    return PI * (a * a * b * b * c * c) / den;
+}
 
-    // usecase: Calculate the area of a triangle's circumcircle using one side length and its opposite angle
-    // returns: The area of the circumcircle
-    static T circumcircleAreaAngle(T side, T oppAngle) {
-        T R = side / ((T)2.0 * sin(oppAngle));
-        return M_PI * R * R;
-    }
+static T circumcircleAreaAngle(T side, T oppAngle) {
+    T R = side / ((T)2.0 * sin(oppAngle));
+    return PI * R * R;
+}
 
-    // usecase: Calculate the area of a triangle's incircle using the lengths of its three sides
-    // returns: The area of the incircle
-    static T incircleAreaSides(T a, T b, T c) {
-        T s = (a + b + c) / (T)2.0;
-        return M_PI * (s - a) * (s - b) * (s - c) / s;
-    }
+static T incircleAreaSides(T a, T b, T c) {
+    T s = (a + b + c) / (T)2.0;
+    return PI * (s - a) * (s - b) * (s - c) / s;
+}
 
-    // usecase: Calculate the area of a triangle's incircle using the triangle's circumradius and three interior angles
-    // returns: The area of the incircle
-    static T incircleAreaAngles(T R, T angA, T angB, T angC) {
-        T r = (T)4.0 * R * sin(angA / (T)2.0) * sin(angB / (T)2.0) * sin(angC / (T)2.0);
-        return M_PI * r * r;
-    }
+static T incircleAreaAngles(T R, T angA, T angB, T angC) {
+    T r = (T)4.0 * R * sin(angA / (T)2.0) * sin(angB / (T)2.0) * sin(angC / (T)2.0);
+    return PI * r * r;
+}
     
     // usecase: Compute altitude height from vertex A to side BC.
     // returns: 2 * Area / a.
@@ -626,7 +627,7 @@ struct PolygonUtils {
             bool up = (q.y <= a.y && a.y < r.y);
             bool down = (r.y <= a.y && a.y < q.y);
             if (up || down) {
-                if (orient(q, r, a) > 0 == (q.y < r.y)) {
+                if ((orient(q, r, a) > 0) == (q.y < r.y)) {
                     cnt++;
                 }
             }
@@ -950,10 +951,6 @@ struct AdvancedPolygonUtils {
     // returns: Pair of vertex indices {rightmost_tangent, leftmost_tangent} relative to view from point a.
     static pair<int, int> tangentsFromExternalPoint(const vector<pt>& p, pt a) {
         int n = p.size();
-        auto isLeft = [&](int i, pt pt_val) {
-            return orient(a, p[i], pt_val) > EPS;
-        };
-        
         int r_idx = 0, l_idx = 0;
         for (int i = 1; i < n; i++) {
             if (orient(a, p[r_idx], p[i]) < -EPS) r_idx = i;
@@ -1010,4 +1007,55 @@ struct AdvancedPolygonUtils {
     }
 };
 
+using ll = long long;
 
+void solve() {
+    int n;
+    cin >> n;
+    vector<pt> points(n);
+    for (int i = 0; i < n; i++) {
+        int xx, yy;
+        cin >> xx >> yy;
+        points[i] = pt(xx, yy);
+    }
+    reverse(points.begin(), points.end());
+    int q; 
+    cin >> q;
+    while (q--) {
+        pt p;
+        int xx, yy;
+        cin >> xx >> yy;
+        p = pt(xx, yy);
+        if (!AdvancedPolygonUtils::inConvexPolygonLogN(points, p)) {
+            cout << "0\n";
+            continue;
+        }
+        ll total = 1LL * n * (n - 1) * (n - 2) / 6;
+        ll bad = 0;
+
+        int j = 1;
+        for (int i = 0; i < n; i++) {
+            if (j <= i) j = i + 1;
+            while (j < i + n && sgn(orient(p, points[i], points[j % n])) > 0) {
+                j++;
+            }
+            ll c = j - i - 1;
+            bad += c * (c - 1) / 2;
+        }
+
+        cout << max(0LL, total - bad) << "\n";
+    }
+
+}
+
+
+
+int32_t main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int t = 1;
+    // cin >> t; 
+    while (t--) solve();
+    return 0;
+}
