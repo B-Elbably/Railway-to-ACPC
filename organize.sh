@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# organize.sh - Organize competitive programming files
-# Usage: ./organize.sh [command] [options]
+# organize.sh - safe wrapper for the repository's grouped problem organizer
+# This keeps files under solved/<platform>/<group>/... rather than creating a
+# separate folder for every single file.
 
 set -euo pipefail
 
@@ -21,31 +22,37 @@ show_help() {
     echo "Usage: ./organize.sh [command] [options]"
     echo ""
     echo "Commands:"
-    echo "  all       Run full organization (default)"
-    echo "  move      Move files to platform folders"
-    echo "  sort      Sort files into categories"
-    echo "  clean     Remove empty directories"
-    echo "  stats     Show statistics"
+    echo "  all                  Run full organization (default)"
+    echo "  move                 Move files into solved/<platform>/<group>/..."
+    echo "  sort                 Sort files by contest/category"
+    echo "  clean                Remove empty directories"
+    echo "  stats                Show organization statistics"
+    echo "  road-to-2027         Put current C++ files into solved/road to 2027/<name>/main.cpp"
     echo ""
     echo "Options:"
-    echo "  -n, --dry-run   Preview without changes"
+    echo "  -n, --dry-run   Preview without changing files"
+    echo "  -h, --help      Show this help"
     echo ""
     echo "Examples:"
-    echo "  ./organize.sh              # Full organization"
-    echo "  ./organize.sh all -n       # Dry run"
-    echo "  ./organize.sh sort         # Sort only"
-    echo "  ./organize.sh stats        # Show stats"
+    echo "  ./organize.sh"
+    echo "  ./organize.sh all --dry-run"
+    echo "  ./organize.sh road-to-2027"
+    echo "  ./organize.sh sort"
+    echo "  ./organize.sh stats"
 }
 
 run_cph() {
     python3 cph.py "$@"
 }
 
-case "${1:-all}" in
+cmd="${1:-all}"
+shift || true
+
+case "$cmd" in
     all)
         dry_run=false
-        for arg in "${@:2}"; do
-            case "$arg" in
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
                 -n|--dry-run)
                     dry_run=true
                     ;;
@@ -54,18 +61,19 @@ case "${1:-all}" in
                     exit 0
                     ;;
                 *)
-                    echo "Unknown option for 'all': $arg" >&2
-                    echo "Use --help for usage." >&2
+                    echo "Unknown option for 'all': $1" >&2
+                    show_help >&2
                     exit 1
                     ;;
             esac
+            shift
         done
 
-        echo "Organizing all files..."
+        echo "Organizing files by judge/contest group..."
         if [[ "$dry_run" == true ]]; then
             run_cph move --dry-run
             run_cph sort --dry-run
-            echo "Skipping 'clean' because dry-run should not modify the filesystem."
+            echo "Skipping clean because dry-run should not modify the filesystem."
         else
             run_cph move
             run_cph sort
@@ -74,15 +82,64 @@ case "${1:-all}" in
         run_cph stats
         echo "Done."
         ;;
-    move|sort|clean|stats)
-        run_cph "$@"
+    move|sort|clean|stats|fetch)
+        run_cph "$cmd" "$@"
+        ;;
+    road-to-2027|road_to_2027)
+        target_root="$SCRIPT_DIR/solved/road to 2027"
+        mkdir -p "$target_root"
+        dry_run=false
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                -n|--dry-run)
+                    dry_run=true
+                    ;;
+                -h|--help)
+                    show_help
+                    exit 0
+                    ;;
+                *)
+                    echo "Unknown option for road-to-2027: $1" >&2
+                    show_help >&2
+                    exit 1
+                    ;;
+            esac
+            shift
+        done
+
+        moved=0
+        shopt -s nullglob
+        for file in "$SCRIPT_DIR"/*.cpp "$SCRIPT_DIR"/*.cc "$SCRIPT_DIR"/*.cxx; do
+            [[ -f "$file" ]] || continue
+            base="$(basename "$file")"
+            stem="${base%.*}"
+            ext="${base##*.}"
+            dest_dir="$target_root/$stem"
+            mkdir -p "$dest_dir"
+            dest="$dest_dir/main.$ext"
+
+            if [[ -e "$dest" ]]; then
+                echo "Skipping $base: $dest already exists"
+                continue
+            fi
+
+            if [[ "$dry_run" == true ]]; then
+                echo "Would move: $base -> $dest"
+                continue
+            fi
+
+            mv "$file" "$dest"
+            echo "Moved: $base -> $dest"
+            moved=$((moved + 1))
+        done
+        echo "Done. Moved $moved C++ file(s) into solved/road to 2027."
         ;;
     -h|--help)
         show_help
         ;;
     *)
-        echo "Unknown command: $1" >&2
-        echo "Use --help for usage." >&2
+        echo "Unknown command: $cmd" >&2
+        show_help >&2
         exit 1
         ;;
 esac
