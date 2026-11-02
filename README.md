@@ -12,23 +12,24 @@ Primary language: C++ (with some Python).
 | `knowledge/` | Reusable algorithms and templates: graphs, trees, range queries, number theory, geometry, DP, misc |
 | `GYMs/` | Contest archives and gym problems |
 | `Topics-Sheets/` | Topic-based problem sheets (ACPC easy, geometry from CF and CSES) |
-| `have_to_study/` | Problems to revisit |
-| `skipped/`, `ignored/` | Problems set aside |
+| `backlog/` | `have_to_study/` (problems to revisit), `skipped/` and `ignored/` (problems set aside) |
 | `problem-setting/` | Generator and solution for problem-setting practice |
 | `testing/` | Stress-testing tools (brute force, generators, `stress.sh`) and a Python scratch template |
 | `boards/` | Whiteboard notes from sessions |
+| `tools/` | `cph.py` (the organizer) and the `organize.sh` wrapper |
 
 ## Workflow
 
-New solutions start in the repository root. The organizer moves them into `solved/`:
+New solutions start in the repository root. The organizer moves them into `solved/`. Run everything from any directory; the scripts find the repo root themselves:
 
 ```bash
-python3 cph.py       # run commands directly (move, sort, clean, stats, fetch)
-./organize.sh        # wrapper: move + sort + clean + stats
-./organize.sh road-to-2027   # put root .cpp files into solved/road to 2027/<name>/main.cpp
+./tools/organize.sh                 # move + sort + clean + stats
+./tools/organize.sh all --dry-run   # preview without changing files
+./tools/organize.sh road-to-2027    # root .cpp files -> solved/road to 2027/<name>/main.cpp
+python3 tools/cph.py stats          # run organizer commands directly (move, sort, clean, stats, fetch)
 ```
 
-`organize.sh` and `cph.py` must stay in the repository root because they resolve paths relative to their own location. `orgainze.sh` is a shortcut that forwards to `organize.sh`.
+`tools/orgainze.sh` is a shortcut that forwards to `organize.sh`.
 
 ## Notes
 

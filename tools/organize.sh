@@ -6,20 +6,21 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
 
 if ! command -v python3 >/dev/null 2>&1; then
     echo "python3 is required but was not found in PATH." >&2
     exit 1
 fi
 
-if [[ ! -f cph.py ]]; then
-    echo "cph.py was not found in $SCRIPT_DIR." >&2
+if [[ ! -f tools/cph.py ]]; then
+    echo "tools/cph.py was not found in $REPO_ROOT." >&2
     exit 1
 fi
 
 show_help() {
-    echo "Usage: ./organize.sh [command] [options]"
+    echo "Usage: ./tools/organize.sh [command] [options]"
     echo ""
     echo "Commands:"
     echo "  all                  Run full organization (default)"
@@ -34,15 +35,15 @@ show_help() {
     echo "  -h, --help      Show this help"
     echo ""
     echo "Examples:"
-    echo "  ./organize.sh"
-    echo "  ./organize.sh all --dry-run"
-    echo "  ./organize.sh road-to-2027"
-    echo "  ./organize.sh sort"
-    echo "  ./organize.sh stats"
+    echo "  ./tools/organize.sh"
+    echo "  ./tools/organize.sh all --dry-run"
+    echo "  ./tools/organize.sh road-to-2027"
+    echo "  ./tools/organize.sh sort"
+    echo "  ./tools/organize.sh stats"
 }
 
 run_cph() {
-    python3 cph.py "$@"
+    python3 tools/cph.py "$@"
 }
 
 cmd="${1:-all}"
@@ -86,7 +87,7 @@ case "$cmd" in
         run_cph "$cmd" "$@"
         ;;
     road-to-2027|road_to_2027)
-        target_root="$SCRIPT_DIR/solved/road to 2027"
+        target_root="$REPO_ROOT/solved/road to 2027"
         mkdir -p "$target_root"
         dry_run=false
         while [[ $# -gt 0 ]]; do
@@ -109,7 +110,7 @@ case "$cmd" in
 
         moved=0
         shopt -s nullglob
-        for file in "$SCRIPT_DIR"/*.cpp "$SCRIPT_DIR"/*.cc "$SCRIPT_DIR"/*.cxx; do
+        for file in "$REPO_ROOT"/*.cpp "$REPO_ROOT"/*.cc "$REPO_ROOT"/*.cxx; do
             [[ -f "$file" ]] || continue
             base="$(basename "$file")"
             stem="${base%.*}"
