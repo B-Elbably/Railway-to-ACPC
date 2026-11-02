@@ -1,37 +1,36 @@
 # Railway-to-ACPC
 
-Personal competitive-programming workspace: fast access to contest-ready templates, solved problems, and a small set of maintenance scripts.
+Personal competitive-programming workspace: contest-ready templates, solved problems, and a small set of maintenance scripts.
 
-Key facts
-- Primary language: C++
-- Total files: 934 (879 .cpp, 42 .py)
+Primary language: C++ (with some Python).
 
-Online judges (solutions present in this repo)
-- Codeforces
-- AtCoder
-- CSES
-- SPOJ
-- USACO
-- Other (misc. platforms)
-- LeetCode (included in index for practice)
+## Layout
 
-Essential folders
-- `solved/` — solutions organized by judge and topic
-- `knowledge/` — reusable algorithms and templates
-- `GYMs/` — contest archives and gym problems
+| Folder | Contents |
+| --- | --- |
+| `solved/` | Solutions grouped by judge (`cf`, `cses`, `atcoder`, `usaco`, `spoj`, `lightoj`, `vjudge`, `other`) and then by round or topic; `road to 2027/` holds current practice |
+| `knowledge/` | Reusable algorithms and templates: graphs, trees, range queries, number theory, geometry, DP, misc |
+| `GYMs/` | Contest archives and gym problems |
+| `Topics-Sheets/` | Topic-based problem sheets (ACPC easy, geometry from CF and CSES) |
+| `have_to_study/` | Problems to revisit |
+| `skipped/`, `ignored/` | Problems set aside |
+| `problem-setting/` | Generator and solution for problem-setting practice |
+| `testing/` | Stress-testing tools (brute force, generators, `stress.sh`) and a Python scratch template |
+| `boards/` | Whiteboard notes from sessions |
 
-Quick commands
-- Build active C++ file (VS Code task): use the `C/C++: gcc build active file` task
-- Run organizer script:
+## Workflow
+
+New solutions start in the repository root. The organizer moves them into `solved/`:
 
 ```bash
-python3 cph.py
-./organize.sh
+python3 cph.py       # run commands directly (move, sort, clean, stats, fetch)
+./organize.sh        # wrapper: move + sort + clean + stats
+./organize.sh road-to-2027   # put root .cpp files into solved/road to 2027/<name>/main.cpp
 ```
 
-Notes
-- This repository is maintained as a personal training archive. Add a `LICENSE` or `CONTRIBUTING.md` if you plan public collaboration.
+`organize.sh` and `cph.py` must stay in the repository root because they resolve paths relative to their own location. `orgainze.sh` is a shortcut that forwards to `organize.sh`.
 
----
+## Notes
 
-Want me to add a `CONTRIBUTING.md` and an MIT `LICENSE`, or generate a small CI workflow to run basic builds? Reply with your choice.
+- Compiled binaries from the CPH-NG extension (`.cph-ng/`) are not tracked.
+- Add a `LICENSE` or `CONTRIBUTING.md` if you plan public collaboration.
