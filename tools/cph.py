@@ -30,7 +30,7 @@ from collections import defaultdict
 from typing import Optional, Dict, List, Tuple, Set
 
 # Configuration
-ROOT_DIR = Path(__file__).parent
+ROOT_DIR = Path(__file__).resolve().parent.parent
 CPH_DIR = ROOT_DIR / ".cph"
 SOLVED_DIR = ROOT_DIR / "solved"
 CACHE_DIR = ROOT_DIR / ".cache"
